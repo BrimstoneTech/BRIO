@@ -15,3 +15,4 @@ eventlet
 pytest
 pytest-asyncio
 Pillow
+pystray

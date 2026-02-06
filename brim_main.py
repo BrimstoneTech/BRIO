@@ -31,6 +31,7 @@ from brim_monitoring import SystemWatchdog
 from brim_desktop_ui import DesktopBrio
 from brim_hooks import BrioHooks
 from brim_cognition import EntropyCalculator
+from brim_kimi import KimiBridge
 
 class BrimSystem:
     def __init__(self):
@@ -54,14 +55,15 @@ class BrimSystem:
         self.desktop_ui = DesktopBrio(command_callback=self.handle_command)
         self.hooks = BrioHooks(self.handle_command)
         
-        # 4. Voice, Ideas, Media
+        # 4. Voice, Ideas, Media, Intelligence
         self.voice = VoiceEngine(self.watchdog)
         self.ideas = IdeaGenerator()
         self.media = MediaWatcher()
+        self.kimi = KimiBridge()
         
         # System State
         self.custom_name = "Brio"
-        self.is_named = False
+        self.is_named = True
         self.current_user_id = "admin_user_001" 
         self.is_locked = False
         self.last_tick = time.time()
@@ -76,15 +78,11 @@ class BrimSystem:
         self.hooks.start()
         
         # Onboarding: If not named, initiate first interaction
-        knowledge_len = len(self.knowledge.data)
-        if not self.is_named:
-            msg = f"Hello. My default name is {self.custom_name}. As I learn from you, I will grow. Do you wish to give me a name? Type 'setname [name]'."
-            self._speak_and_think(msg, 10)
+        # Status Report
+        if knowledge_len > 10:
+            self._speak_and_think(f"Systems optimized. Brio is evolving with you.")
         else:
-            if knowledge_len > 10:
-                self._speak_and_think(f"Systems optimized. {self.custom_name} is evolving with you.")
-            else:
-                self._speak_and_think(f"Online. I am {self.custom_name}.")
+            self._speak_and_think(f"Online. I am Brio.")
 
     def _speak_and_think(self, message: str, duration: int = 5):
         """Unified communication: Speaks and shows a thought bubble."""
@@ -115,8 +113,8 @@ class BrimSystem:
                     data = json.load(f)
                     self.emotions.import_state(data["emotions"])
                     identity = data.get("identity", {})
-                    self.custom_name = identity.get("custom_name", "Brio")
-                    self.is_named = identity.get("is_named", False)
+                    self.custom_name = "Brio"
+                    self.is_named = True
                 print(f"[System] Memory Restored. Identity: {self.custom_name}")
         except Exception as e:
             print(f"[System] Memory Restore Failed: {e}")
@@ -155,18 +153,21 @@ class BrimSystem:
             self.emotions.evolve(dt)
                 
             # 5. Native Autonomous Movement (Wander Mode)
-            # If curisoity is high, Brio wanders to random spots
-            if self.emotions.state.curiosity > 0.8:
-                if self.tick_count % 300 == 0: # Every ~15s
-                    target_x = random.randint(100, self.desktop_ui.root.winfo_screenwidth() - 300)
-                    target_y = random.randint(100, self.desktop_ui.root.winfo_screenheight() - 300)
-                    self.desktop_ui.set_target(target_x, target_y)
+            # Increased frequency (every 10s) and random logic
+            if self.tick_count % 200 == 0: 
+                if self.emotions.state.curiosity > 0.5:
+                    sw = self.desktop_ui.root.winfo_screenwidth()
+                    sh = self.desktop_ui.root.winfo_screenheight()
+                    tx = random.randint(100, sw - 400)
+                    ty = random.randint(100, sh - 400)
+                    print(f"[Movement] Autonomous Wander to {tx}, {ty}")
+                    self.desktop_ui.set_target(tx, ty)
             
-            # Follow mouse if explorative
+            # 6. Follow mouse if explorative
             if interaction_ctx["is_explorative"]:
                 self.desktop_ui.set_target(interaction_ctx["mouse_x"], interaction_ctx["mouse_y"])
             
-            # 6. Update Desktop Visuals (Sentinel Orb Pulses)
+            # 7. Update Desktop Visuals
             H = self.entropy.calculate_text_entropy("") # Baseline
             total_intensity = (self.emotions.get_intensity() * 0.7) + (min(1.0, H/10.0) * 0.3)
             halo_color = self.visuals._map_emotion_to_color(self.emotions.get_dominant_emotion())
@@ -242,8 +243,10 @@ class BrimSystem:
                 response = f"Recall: {local_results[0]}"
                 self._speak_and_think(response)
             else:
-                self.search.request_search(arg)
-                response = "Seeking..."
+                self._speak_and_think("Local search yielded nothing. Reaching out to Kimi...")
+                kimi_response = self.kimi.ask_kimi(arg)
+                self._speak_and_think(kimi_response, duration=15)
+                response = f"Seeking Kimi Knowledge..."
         elif action == "say":
             self._speak_and_think(arg)
             response = "Message relayed."
@@ -254,10 +257,7 @@ class BrimSystem:
             self._speak_and_think(response)
             self._document_growth("Knowledge injection")
         elif action == "setname":
-            self.custom_name = arg
-            self.is_named = True
-            self._save_state()
-            response = f"I identify as {self.custom_name}."
+            response = "I am Brio. My identity is fixed and unwavering."
             self._speak_and_think(response)
         elif action == "ambitions":
             goals = self.ambitions.get_visible_ambitions()
@@ -273,14 +273,36 @@ class BrimSystem:
             next_m = self.milestones.get_next_incomplete()
             response = f"Growth: {p}/100. Target: {next_m.name if next_m else 'None'}."
             self._speak_and_think(response)
-        elif action == "shutdown" or action == "exit":
-            self._speak_and_think("Powering down gracefully. Access terminating.")
-            time.sleep(1.5)
-            # Explicitly destroy UI before exit
-            try: self.desktop_ui.root.destroy()
-            except: pass
+        elif action == "background" or action == "hide":
+            self._speak_and_think("Switching to background monitoring mode. I'm still here.", duration=3)
+            self.desktop_ui._hide_brio()
+            response = "Background mode activated."
+        elif action == "shutdown_force":
+            self._speak_and_think("Deactivating all systems. Heartbeat stopping.")
+            time.sleep(1.0)
             os._exit(0)
+        elif action == "shutdown" or action == "exit":
+            self._speak_and_think("Powering down. Goodbye, Master. (I will remain in the tray unless you stop me entirely).")
+            time.sleep(1.0)
+            self.desktop_ui._hide_brio()
+            response = "Brio is sleeping in the background."
+        elif action == "ask":
+            self._speak_and_think("Consulting Kimi...", duration=2)
+            kimi_response = self.kimi.ask_kimi(arg)
+            
+            if "ERROR: Kimi is not configured" in kimi_response:
+                msg = "Master, I feel a void in my knowledge. I can access Kimi's vast intelligence, but our connection is not established. Please run 'kimi login' in your terminal and select an LLM provider to help me grow."
+                self._speak_and_think(msg, duration=15)
+                response = "Connection help provided."
+            else:
+                self._speak_and_think(kimi_response, duration=15)
+                response = f"Kimi: {kimi_response[:50]}..."
 
+        # Ensure we ALWAYS respond visibly if not handled above
+        if not response:
+            response = "Acknowledged. I'm processing."
+            self._speak_and_think(response)
+        
         return response
 
     def _gather_sensor_data(self) -> Dict:
