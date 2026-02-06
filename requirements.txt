@@ -3,7 +3,6 @@
 psutil
 keyboard
 vosk
-pyaudio; sys_platform == 'win32'
 pyttsx3
 flask
 flask-socketio

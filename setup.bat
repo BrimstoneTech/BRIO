@@ -46,17 +46,21 @@ if not exist .venv (
     %PYTHON_EXE% -m venv .venv
 )
 
-:: 3. Install Dependencies
-echo [INFO] Installing Libraries (this may take a minute)...
-.venv\Scripts\python -m pip install --upgrade pip >nul
-.venv\Scripts\pip install -r requirements.txt --quiet
+:: 3. Install Core Dependencies
+echo [INFO] Installing Core Libraries...
+.venv\Scripts\python -m pip install --upgrade pip
+.venv\Scripts\pip install -r requirements.txt
 
-:: 4. Robust Audio Driver Check (Fix for PyAudio)
+:: 4. Optional Audio Driver Check (Non-Blocking)
+echo [INFO] Checking Voice capabilities...
 .venv\Scripts\python -c "import pyaudio" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [INFO] Standard PyAudio failed. Attempting robust install...
-    .venv\Scripts\python -m pip install pipwin --quiet
-    .venv\Scripts\python -m pipwin install pyaudio --quiet
+    echo [WARNING] Voice Hearing (PyAudio) requires C++ Build Tools.
+    echo [WARNING] Attempting automatic fix...
+    .venv\Scripts\pip install pyaudio
+    if !errorlevel! neq 0 (
+        echo [INFO] Voice Hearing will be disabled, but Brio's Orb is still launching!
+    )
 )
 
 :: 5. Generate Professional Icon
@@ -65,19 +69,23 @@ echo [INFO] Generating High-Res Sentinel Orb Icon...
 
 :: 6. Create Desktop Shortcut
 echo [INFO] Generating Desktop Shortcut...
-set SCRIPT_PATH=%~dp0brim_main.py
-set ICON_PATH=%~dp0assets\brio_icon.ico
-set SHORTCUT_PATH=%USERPROFILE%\Desktop\Brio AI.lnk
+set "SCRIPT_PATH=%~dp0brim_main.py"
+set "ICON_PATH=%~dp0assets\brio_icon.ico"
+set "SHORTCUT_PATH=%USERPROFILE%\Desktop\Brio AI.lnk"
+set "EXE_PATH=%~dp0.venv\Scripts\pythonw.exe"
 
-:: Use PowerShell to create the shortcut with the professional icon
-powershell -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('%SHORTCUT_PATH%');$s.TargetPath='%~dp0.venv\Scripts\pythonw.exe';$s.Arguments='\"%SCRIPT_PATH%\"';$s.WorkingDirectory='%~dp0';$s.WindowStyle=7;if(Test-Path '%ICON_PATH%'){$s.IconLocation='%ICON_PATH%'};$s.Save()"
+:: Use PowerShell with robust quoting for spaces
+powershell -Command "$ws=New-Object -ComObject WScript.Shell; $s=$ws.CreateShortcut('%SHORTCUT_PATH%'); $s.TargetPath='%EXE_PATH%'; $s.Arguments='\"%SCRIPT_PATH%\"'; $s.WorkingDirectory='%~dp0'; $s.WindowStyle=7; if(Test-Path '%ICON_PATH%'){$s.IconLocation='%ICON_PATH%'}; $s.Save()"
 
 echo.
 echo ==========================================
-echo   INSTALLATION COMPLETE!
+echo   INSTALLATION SUCCESSFUL!
 echo.
-echo   - Sentinel Orb v2.0 is Live.
-echo   - Professional Desktop Icon Applied.
-echo   - Audio Drivers Verified.
+echo   - Sentinel Orb: READY
+echo   - Desktop Icon: APPLIED
+echo   - Status: V2.2 Professional Baseline
+echo.
+echo   NOTE: If the icon doesn't show immediately, 
+echo   right-click your Desktop and select 'Refresh'.
 echo ==========================================
 pause

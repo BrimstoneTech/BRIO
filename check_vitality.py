@@ -19,20 +19,23 @@ def check_vital":
 
     # 1. Python Check
     print(f"[1/5] Python Version: {sys.version.split()[0]}", end=" ")
-    if sys.version_info >= (3, 8):
+    if sys.version_info >= (3, 14):
+        print(" [BETA/EXPERIMENTAL]")
+        score += 1
+    elif sys.version_info >= (3, 8):
         print(" [OK]")
         score += 1
     else:
         print(" [LOW] (3.8+ Recommended)")
 
-    # 2. Dependency: Pillow
+    # 2. Dependency: Pillow (Visuals)
     print("[2/5] Visual Engine (Pillow):", end=" ")
     try:
         importlib.import_module("PIL")
         print(" [OK]")
         score += 1
     except ImportError:
-        print(" [MISSING] (Run setup.bat)")
+        print(" [MISSING] (CRITICAL for Sentinel Orb)")
 
     # 3. Dependency: psutil
     print("[3/5] Sensor Engine (psutil): ", end=" ")
@@ -41,19 +44,20 @@ def check_vital":
         print(" [OK]")
         score += 1
     except ImportError:
-        print(" [MISSING] (Brio will run in limited mode)")
+        print(" [MISSING] (Limited telemetry)")
 
-    # 4. Asset Check
-    print("[4/5] Sentinel Orb Asset:    ", end=" ")
-    if os.path.exists("assets/orb_base.png"):
+    # 4. Dependency: pyaudio (Hearing)
+    print("[4/5] Audio Engine (pyaudio): ", end=" ")
+    try:
+        importlib.import_module("pyaudio")
         print(" [OK]")
         score += 1
-    else:
-        print(" [MISSING] (Brio will use vector fallback)")
+    except ImportError:
+        print(" [MISSING] (Hearing disabled)")
 
-    # 5. Core Files
-    print("[5/5] Core Brain (Main Loop): ", end=" ")
-    if os.path.exists("brim_main.py"):
+    # 5. Asset Check
+    print("[5/5] Sentinel Orb Gallery:  ", end=" ")
+    if os.path.exists("assets/orb_base.png"):
         print(" [OK]")
         score += 1
     else:
@@ -63,12 +67,14 @@ def check_vital":
     vitality = (score / total) * 100
     print(f"TOTAL VITALITY: {vitality:.0f}%")
     
-    if vitality == 100:
-        print("\n[RESULT] Brio is 100% READY for deployment!")
-    elif score >= 3:
-        print("\n[RESULT] Brio is functional but limited. Check missing items.")
+    if score >= 4:
+        print("\n[RESULT] Brio is 100% READY for visuals & movement!")
+        if vitality < 100:
+            print("[NOTE] Audio Hearing is missing, but the Sentinel Orb is live.")
+    elif score >= 2:
+        print("\n[RESULT] Brio is functional in 'Silent Mode'.")
     else:
-        print("\n[RESULT] Critical issues detected. Please run setup.bat.")
+        print("\n[RESULT] Deployment failed. Check Pillow and Assets.")
     print("==========================================")
 
 if __name__ == "__main__":
