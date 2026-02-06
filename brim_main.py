@@ -24,7 +24,6 @@ from brim_security import SafetyProbabilityModel, SafetyInputs, MasterProtocol
 from brim_visuals import VisualStateManager, SystemContext, VisualState
 from brim_learning import QLearningAgent, ReprimandSystem, KnowledgeBase, AmbitionManager
 from brim_search import SearchEngine
-from brim_ui import OverlayController, MenuOption
 from brim_voice import VoiceEngine
 from brim_ideas import IdeaGenerator, IdeaType
 from brim_media import MediaWatcher, MediaContext
@@ -49,7 +48,6 @@ class BrimSystem:
         self.safety = SafetyProbabilityModel()
         self.visuals = VisualStateManager()
         self.search = SearchEngine(self.watchdog)
-        self.ui_controller = OverlayController()
         
         # 3. Initialize UI & Hooks
         self.desktop_ui = DesktopBrio(command_callback=self.handle_command)

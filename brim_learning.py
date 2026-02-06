@@ -11,6 +11,7 @@ Concepts:
 
 import random
 from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
 
 class QLearningAgent:
     def __init__(self, actions: List[str], alpha: float = 0.1, gamma: float = 0.9, epsilon: float = 0.1):
