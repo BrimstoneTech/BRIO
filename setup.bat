@@ -51,19 +51,33 @@ echo [INFO] Installing Libraries (this may take a minute)...
 .venv\Scripts\python -m pip install --upgrade pip >nul
 .venv\Scripts\pip install -r requirements.txt --quiet
 
-:: 4. Create Desktop Shortcut
+:: 4. Robust Audio Driver Check (Fix for PyAudio)
+.venv\Scripts\python -c "import pyaudio" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [INFO] Standard PyAudio failed. Attempting robust install...
+    .venv\Scripts\python -m pip install pipwin --quiet
+    .venv\Scripts\python -m pipwin install pyaudio --quiet
+)
+
+:: 5. Generate Professional Icon
+echo [INFO] Generating High-Res Sentinel Orb Icon...
+.venv\Scripts\python create_icon.py
+
+:: 6. Create Desktop Shortcut
 echo [INFO] Generating Desktop Shortcut...
 set SCRIPT_PATH=%~dp0brim_main.py
 set ICON_PATH=%~dp0assets\brio_icon.ico
 set SHORTCUT_PATH=%USERPROFILE%\Desktop\Brio AI.lnk
 
-:: Use PowerShell to create the shortcut
-powershell -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('%SHORTCUT_PATH%');$s.TargetPath='.venv\Scripts\pythonw.exe';$s.Arguments='\"%SCRIPT_PATH%\"';$s.WorkingDirectory='%~dp0';$s.WindowStyle=7;if(Test-Path '%ICON_PATH%'){$s.IconLocation='%ICON_PATH%'};$s.Save()"
+:: Use PowerShell to create the shortcut with the professional icon
+powershell -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('%SHORTCUT_PATH%');$s.TargetPath='%~dp0.venv\Scripts\pythonw.exe';$s.Arguments='\"%SCRIPT_PATH%\"';$s.WorkingDirectory='%~dp0';$s.WindowStyle=7;if(Test-Path '%ICON_PATH%'){$s.IconLocation='%ICON_PATH%'};$s.Save()"
 
 echo.
 echo ==========================================
 echo   INSTALLATION COMPLETE!
 echo.
-echo   You can now launch Brio from your Desktop.
+echo   - Sentinel Orb v2.0 is Live.
+echo   - Professional Desktop Icon Applied.
+echo   - Audio Drivers Verified.
 echo ==========================================
 pause

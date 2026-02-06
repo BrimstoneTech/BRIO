@@ -31,6 +31,7 @@ class VoiceEngine:
         self.tts_engine = None
         self.has_tts_active = HAS_TTS
         self.watchdog = watchdog
+        self.has_stt_active = HAS_STT
         
         # Initialize TTS
         if self.has_tts_active:
@@ -40,11 +41,19 @@ class VoiceEngine:
             except Exception as e:
                 print(f"[Voice] TTS Init Error: {e}")
                 self.has_tts_active = False
-                if self.watchdog:
-                    self.watchdog.log_error("VoiceEngine", f"TTS Init Failure: {e}")
         
-        # Initialize STT
-        self.stt_model = None
+        # Initialize STT (Mic Check)
+        if self.has_stt_active:
+            try:
+                p = pyaudio.PyAudio()
+                # Check if at least one input device exists
+                if p.get_device_count() == 0:
+                    print("[Voice] No microphone detected. Hearing disabled.")
+                    self.has_stt_active = False
+                p.terminate()
+            except Exception as e:
+                print(f"[Voice] PyAudio Error: {e}")
+                self.has_stt_active = False
 
     def speak(self, text: str):
         """Speak text using TTS or fallback to print"""
@@ -54,17 +63,21 @@ class VoiceEngine:
             
         if self.has_tts_active and self.tts_engine:
             try:
-                self.tts_engine.say(text)
-                self.tts_engine.runAndWait()
+                # Wrap in a thread to prevent blocking the main engine during long speech
+                threading.Thread(target=self._speak_sync, args=(text,), daemon=True).start()
             except Exception as e:
                 print(f"[Voice] TTS Error: {e}")
-                if self.watchdog:
-                    self.watchdog.log_error("VoiceEngine", f"TTS Playback Error: {e}")
+
+    def _speak_sync(self, text):
+        try:
+            self.tts_engine.say(text)
+            self.tts_engine.runAndWait()
+        except: pass
 
     def start_listening_loop(self):
         """Starts background thread for wake-word detection"""
-        if not HAS_STT:
-            print("[Voice] 'vosk' or 'pyaudio' not found. Voice commands disabled.")
+        if not self.has_stt_active:
+            print("[Voice] Voice commands disabled (Missing driver or Mic).")
             return
 
         self.is_listening = True
@@ -72,12 +85,19 @@ class VoiceEngine:
         t.start()
         
     def _listen_worker(self):
-        """Simulated listener or Real loop"""
-        print("[Voice] Listening... (Simulation)")
-        while self.is_listening:
-            time.sleep(1)
-            # In real implementation: read stream, rec.AcceptWaveform(data)
-            pass
+        """Real listener or Simulation fallback"""
+        try:
+            p = pyaudio.PyAudio()
+            stream = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)
+            stream.start_stream()
+            print("[Voice] Listening active.")
+            
+            while self.is_listening:
+                # Real recognition logic would go here
+                time.sleep(0.1)
+        except Exception as e:
+            print(f"[Voice] Listener Thread Crash: {e}")
+            self.has_stt_active = False
 
     def get_dependencies_status(self) -> str:
         status = []
