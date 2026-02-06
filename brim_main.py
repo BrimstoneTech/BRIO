@@ -80,7 +80,6 @@ class BrimSystem:
         if not self.is_named:
             msg = f"Hello. My default name is {self.custom_name}. Do you wish to give me a name? Type 'setname [name]' in the air or in the hover-box."
             self._speak_and_think(msg, 10)
-            print(f"[Identity] Onboarding Triggered: {msg}")
         else:
             self._speak_and_think(f"System Online. Welcome back, Master. I am {self.custom_name}.")
 

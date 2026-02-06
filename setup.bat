@@ -6,18 +6,44 @@ echo       Brio AI - One-Click Installer
 echo ==========================================
 echo.
 
-:: 1. Check for Python
+:: 1. Robust Python Hunt
+set PYTHON_EXE=
+echo [INFO] Searching for compatible Python interpreter...
+
+:: Try 'py' (Python Launcher)
+py --version >nul 2>&1
+if %errorlevel% equ 0 (
+    set PYTHON_EXE=py
+    goto :found_python
+)
+
+:: Try 'python'
 python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Python not found. Please install Python 3.8+ from python.org
+if %errorlevel% equ 0 (
+    set PYTHON_EXE=python
+    goto :found_python
+)
+
+:: Try 'python3'
+python3 --version >nul 2>&1
+if %errorlevel% equ 0 (
+    set PYTHON_EXE=python3
+    goto :found_python
+)
+
+:found_python
+if "%PYTHON_EXE%"=="" (
+    echo [ERROR] No Python interpreter found. 
+    echo Please install Python 3.8+ from https://www.python.org/
     pause
     exit /b 1
 )
+echo [INFO] Found: %PYTHON_EXE%
 
 :: 2. Create Virtual Environment
 if not exist .venv (
     echo [INFO] Creating Virtual Environment...
-    python -m venv .venv
+    %PYTHON_EXE% -m venv .venv
 )
 
 :: 3. Install Dependencies
