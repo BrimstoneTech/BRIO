@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brio Living Overlay Prototype</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #eee;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        #overlay-container {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            /* Border representing the screen area for the overlay */
+            border: 1px dashed #333; 
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+        }
+        #controls {
+            margin-top: 20px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s;
+        }
+        button:active { transform: scale(0.95); }
+        .btn-empathy { background-color: #00CED1; color: #000; }
+        .btn-joy { background-color: #FFD700; color: #000; }
+        .btn-concern { background-color: #FF6347; color: #fff; }
+        .btn-curiosity { background-color: #9370DB; color: #fff; }
+        
+        input[type="range"] { accent-color: #00CED1; }
+        
+        .instruction {
+            margin-top: 10px;
+            color: #888;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay-container">
+        <canvas id="canvas" width="400" height="400"></canvas>
+    </div>
+
+    <div id="controls">
+        <label>Emotion:</label>
+        <button class="btn-empathy" onclick="setEmotion('#00CED1')">Empathy</button>
+        <button class="btn-joy" onclick="setEmotion('#FFD700')">Joy</button>
+        <button class="btn-curiosity" onclick="setEmotion('#9370DB')">Curiosity</button>
+        <button class="btn-concern" onclick="setEmotion('#FF6347')">Concern</button>
+        
+        <label style="margin-left: 20px;">Intensity:</label>
+        <input type="range" id="intensity" min="0" max="100" value="20">
+    </div>
+    
+    <div class="instruction">Right-Click (or Long Press) the Ball to Open Menu</div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // State
+        let haloColor = "#00CED1"; // Default Teal
+        let intensity = 0.2; // 0.0 - 1.0
+        let time = 0;
+        
+        // Ball Props
+        const centerX = 200;
+        const centerY = 200;
+        const ballRadius = 40;
+        
+        // Menu State
+        let menuOpen = false;
+        let menuAnim = 0; // 0.0 to 1.0
+        let menuItems = [
+            { label: "Wake/Sleep", icon: "⏻" },
+            { label: "Settings", icon: "⚙" },
+            { label: "Look", icon: "🎨" }
+        ];
+
+        // Controls
+        function setEmotion(hex) {
+            haloColor = hex;
+        }
+        
+        document.getElementById('intensity').addEventListener('input', (e) => {
+            intensity = e.target.value / 100;
+        });
+
+        // Input Handling
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            // Check collision with ball
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const dist = Math.sqrt((x-centerX)**2 + (y-centerY)**2);
+            
+            if (dist < ballRadius * 1.5) {
+                toggleMenu();
+            }
+        });
+        
+        function toggleMenu() {
+            menuOpen = !menuOpen;
+        }
+
+        // Animation Loop
+        function loop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            time += 0.05;
+            
+            // 1. Draw Halo
+            // Pulse logic: Base radius 50, pulse amplitude depends on intensity
+            // Pulse speed depends on intensity
+            const pulseSpeed = 1 + (intensity * 4); 
+            const pulseAmp = 5 + (intensity * 15);
+            const currentRadius = ballRadius + 10 + Math.sin(time * pulseSpeed) * pulseAmp;
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, currentRadius, 0, Math.PI * 2);
+            ctx.fillStyle = haloColor + "44"; // Low opacity fill
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, currentRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = haloColor;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // 2. Draw Support Ball (The Anchor)
+            const grad = ctx.createRadialGradient(centerX-10, centerY-10, 5, centerX, centerY, ballRadius);
+            grad.addColorStop(0, "#eee");
+            grad.addColorStop(1, "#aaa");
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, ballRadius, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+            
+            // Add Logo/face
+            ctx.fillStyle = "#333";
+            ctx.font = "16px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("B", centerX, centerY);
+
+            // 3. Draw Radial Menu
+            updateMenuAnimation();
+            if (menuAnim > 0.01) {
+                drawRadialMenu(ctx, centerX, centerY, ballRadius + 20, 140 * menuAnim);
+            }
+
+            requestAnimationFrame(loop);
+        }
+        
+        function updateMenuAnimation() {
+            const target = menuOpen ? 1.0 : 0.0;
+            menuAnim += (target - menuAnim) * 0.1; // Smooth lerp
+        }
+        
+        function drawRadialMenu(ctx, x, y, innerR, outerR) {
+            const itemCount = menuItems.length;
+            const startAngle = -Math.PI; // Start at 9 o'clock
+            const endAngle = 0;          // End at 3 o'clock (Semicircle top)
+            const totalAngle = Math.PI;
+            const step = totalAngle / itemCount;
+            
+            ctx.save();
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "#000";
+            
+            for (let i = 0; i < itemCount; i++) {
+                const itemStart = startAngle + (i * step);
+                const itemEnd = itemStart + step;
+                
+                // Draw Segment
+                ctx.beginPath();
+                ctx.arc(x, y, outerR, itemStart, itemEnd);
+                ctx.arc(x, y, innerR, itemEnd, itemStart, true);
+                ctx.closePath();
+                
+                ctx.fillStyle = "#444";
+                ctx.fill();
+                ctx.strokeStyle = "#555";
+                ctx.stroke();
+                
+                // Draw Icon/Text
+                const midAngle = itemStart + (step / 2);
+                const textR = innerR + (outerR - innerR)/2;
+                const tx = x + Math.cos(midAngle) * textR;
+                const ty = y + Math.sin(midAngle) * textR;
+                
+                ctx.fillStyle = "#fff";
+                ctx.font = "14px Arial";
+                ctx.fillText(menuItems[i].icon, tx, ty - 5);
+                ctx.font = "10px Arial";
+                ctx.fillText(menuItems[i].label, tx, ty + 10);
+            }
+            ctx.restore();
+        }
+
+        loop();
+        
+    </script>
+</body>
+</html>

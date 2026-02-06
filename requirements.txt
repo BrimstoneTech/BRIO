@@ -1,0 +1,17 @@
+
+# Core dependencies
+psutil
+keyboard
+vosk
+pyaudio; sys_platform == 'win32'
+pyttsx3
+flask
+flask-socketio
+eventlet
+
+# Logic & Math
+# numpy (optional but recommended for high performance matrix ops later)
+
+# Dev/Test
+pytest
+pytest-asyncio
