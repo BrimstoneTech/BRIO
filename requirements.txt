@@ -15,3 +15,4 @@ eventlet
 # Dev/Test
 pytest
 pytest-asyncio
+Pillow
