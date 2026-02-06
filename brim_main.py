@@ -154,8 +154,16 @@ class BrimSystem:
                 self.emotions.apply_trigger(EmotionTrigger.SYSTEM_ERROR, 0.05)
             self.emotions.evolve(dt)
                 
-            # 5. Native Movement
-            if self.emotions.state.curiosity > 0.7 or interaction_ctx["is_explorative"]:
+            # 5. Native Autonomous Movement (Wander Mode)
+            # If curisoity is high, Brio wanders to random spots
+            if self.emotions.state.curiosity > 0.8:
+                if self.tick_count % 300 == 0: # Every ~15s
+                    target_x = random.randint(100, self.desktop_ui.root.winfo_screenwidth() - 300)
+                    target_y = random.randint(100, self.desktop_ui.root.winfo_screenheight() - 300)
+                    self.desktop_ui.set_target(target_x, target_y)
+            
+            # Follow mouse if explorative
+            if interaction_ctx["is_explorative"]:
                 self.desktop_ui.set_target(interaction_ctx["mouse_x"], interaction_ctx["mouse_y"])
             
             # 6. Update Desktop Visuals (Sentinel Orb Pulses)
@@ -187,6 +195,11 @@ class BrimSystem:
             
             latency = (time.time() - start_time) * 1000
             self.watchdog.heartbeat("HeartLoop", latency=latency)
+            
+            # Trigger milestones for evolution
+            if self.tick_count % 3600 == 0: # Every 3 mins
+                self._document_growth("Time-based evolution")
+
             return {"status": "OK"}
 
         except Exception as e:
@@ -252,9 +265,20 @@ class BrimSystem:
             self._speak_and_think(response)
         elif action == "walkthrough":
             self._speak_and_think("Hi! I am Brio. Type anywhere to talk to me.")
+        elif action == "settings":
+            response = f"Current Configuration: Name={self.custom_name}, Confidence={self.emotions.state.confidence:.2f}."
+            self._speak_and_think(response)
+        elif action == "milestones":
+            p = self.milestones.get_progress_percent()
+            next_m = self.milestones.get_next_incomplete()
+            response = f"Growth: {p}/100. Target: {next_m.name if next_m else 'None'}."
+            self._speak_and_think(response)
         elif action == "shutdown" or action == "exit":
-            self._speak_and_think("Powering down. See you soon, Master.")
-            time.sleep(2)
+            self._speak_and_think("Powering down gracefully. Access terminating.")
+            time.sleep(1.5)
+            # Explicitly destroy UI before exit
+            try: self.desktop_ui.root.destroy()
+            except: pass
             os._exit(0)
 
         return response
