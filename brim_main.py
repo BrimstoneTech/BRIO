@@ -22,7 +22,7 @@ except ImportError:
 from brim_emotions import EmotionEngine, EmotionType, EmotionTrigger
 from brim_security import SafetyProbabilityModel, SafetyInputs, MasterProtocol
 from brim_visuals import VisualStateManager, SystemContext, VisualState
-from brim_learning import QLearningAgent, ReprimandSystem, KnowledgeBase, AmbitionManager
+from brim_learning import QLearningAgent, ReprimandSystem, KnowledgeBase, AmbitionManager, MilestoneManager
 from brim_search import SearchEngine
 from brim_voice import VoiceEngine
 from brim_ideas import IdeaGenerator, IdeaType
@@ -42,6 +42,7 @@ class BrimSystem:
         self.entropy = EntropyCalculator()
         self.knowledge = KnowledgeBase()
         self.ambitions = AmbitionManager()
+        self.milestones = MilestoneManager()
         
         # 2. Initialize Sub-Systems
         self.emotions = EmotionEngine()
@@ -75,11 +76,15 @@ class BrimSystem:
         self.hooks.start()
         
         # Onboarding: If not named, initiate first interaction
+        knowledge_len = len(self.knowledge.data)
         if not self.is_named:
-            msg = f"Hello. My default name is {self.custom_name}. Do you wish to give me a name? Type 'setname [name]' in the air or in the hover-box."
+            msg = f"Hello. My default name is {self.custom_name}. As I learn from you, I will grow. Do you wish to give me a name? Type 'setname [name]'."
             self._speak_and_think(msg, 10)
         else:
-            self._speak_and_think(f"System Online. Welcome back, Master. I am {self.custom_name}.")
+            if knowledge_len > 10:
+                self._speak_and_think(f"Systems optimized. {self.custom_name} is evolving with you.")
+            else:
+                self._speak_and_think(f"Online. I am {self.custom_name}.")
 
     def _speak_and_think(self, message: str, duration: int = 5):
         """Unified communication: Speaks and shows a thought bubble."""
@@ -132,11 +137,12 @@ class BrimSystem:
             media_ctx = self.media.get_context()
             self._react_to_media(media_ctx)
             
-            # 3. Autonomous Ideas
-            if self.tick_count % 200 == 0: # Check ideas every ~10s
-                new_idea = self.ideas.generate_thought(self.emotions.state.curiosity, self.emotions.state.joy)
+            # 3. Autonomous Ideas (Reduced frequency for considerateness: Every ~2 mins)
+            if self.tick_count % 2400 == 0: 
+                knowledge_len = len(self.knowledge.data)
+                new_idea = self.ideas.generate_thought(self.emotions.state.curiosity, self.emotions.state.joy, knowledge_len)
                 if new_idea:
-                    self._speak_and_think(f"Idea: {new_idea.description}")
+                    self._speak_and_think(new_idea.description)
 
             # 4. Check Safety & Evolve Emotions
             safety_inputs = SafetyInputs(1.0, 1.0, 1.0, 0.8)
@@ -162,13 +168,19 @@ class BrimSystem:
             
             # 7. Ambition & State Persistence
             self.tick_count += 1
+            
+            # Milestone: Interaction frequency
+            if self.tick_count % 5000 == 0:
+                self._document_growth("Interaction threshold")
+
             if self.tick_count % 1200 == 0: # Every minute at 20Hz
                 metrics = {
                     "knowledge": len(self.knowledge.data),
                     "interactions": self.tick_count,
                     "joy": self.emotions.state.joy
                 }
-                newly_unlocked = self.ambitions.check_unlocks(metrics)
+                m_count = self.milestones.get_progress_percent()
+                newly_unlocked = self.ambitions.check_unlocks(metrics, m_count)
                 for a in newly_unlocked:
                     self._speak_and_think(f"I've realized a new ambition: {a.name}. {a.description}", duration=10)
                 self._save_state()
@@ -180,6 +192,15 @@ class BrimSystem:
         except Exception as e:
             self.watchdog.log_error("HeartLoop", f"Fatal Tick Error: {e}", "CRITICAL")
             return {"status": "ERROR", "msg": str(e)}
+
+    def _document_growth(self, reason: str):
+        """Signals a milestone completion"""
+        m = self.milestones.get_next_incomplete()
+        if m and self.milestones.complete_milestone(m.id):
+            progress = self.milestones.get_progress_percent()
+            msg = f"Growth Documented: {m.name} ({progress}/100). {reason} assimilated."
+            print(f"[Growth] {msg}")
+            self.desktop_ui.show_thought(msg, duration_sec=7)
 
     def _react_to_media(self, context: MediaContext):
         if context == MediaContext.HORROR:
@@ -205,30 +226,36 @@ class BrimSystem:
         if action == "search":
             local_results = self.knowledge.search(arg)
             if local_results:
-                response = f"I recall you told me: {local_results[0]}"
+                response = f"Recall: {local_results[0]}"
                 self._speak_and_think(response)
             else:
                 self.search.request_search(arg)
-                response = "Searching..."
+                response = "Seeking..."
         elif action == "say":
             self._speak_and_think(arg)
-            response = f"Speaking: {arg}"
+            response = "Message relayed."
         elif action == "learn":
             self.knowledge.learn(arg)
-            response = "Knowledge stored."
+            k_len = len(self.knowledge.data)
+            response = f"Assimilated. Memory unit {k_len} stored."
             self._speak_and_think(response)
+            self._document_growth("Knowledge injection")
         elif action == "setname":
             self.custom_name = arg
             self.is_named = True
             self._save_state()
-            response = f"I am now {self.custom_name}."
+            response = f"I identify as {self.custom_name}."
             self._speak_and_think(response)
         elif action == "ambitions":
             goals = self.ambitions.get_visible_ambitions()
-            response = f"Ambitions: {', '.join(goals)}."
+            response = f"Aspirations: {', '.join(goals)}."
             self._speak_and_think(response)
         elif action == "walkthrough":
             self._speak_and_think("Hi! I am Brio. Type anywhere to talk to me.")
+        elif action == "shutdown" or action == "exit":
+            self._speak_and_think("Powering down. See you soon, Master.")
+            time.sleep(2)
+            os._exit(0)
 
         return response
 

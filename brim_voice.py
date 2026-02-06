@@ -37,7 +37,16 @@ class VoiceEngine:
         if self.has_tts_active:
             try:
                 self.tts_engine = pyttsx3.init()
-                self.tts_engine.setProperty('rate', 160)
+                # Younger/Curious check: Increase rate for a chipper feel
+                self.tts_engine.setProperty('rate', 190) 
+                self.tts_engine.setProperty('volume', 0.9)
+                
+                # Try to find a 'younger' or female voice (often sounds more youthful in TTS)
+                voices = self.tts_engine.getProperty('voices')
+                for voice in voices:
+                    if "zira" in voice.name.lower() or "female" in voice.name.lower():
+                        self.tts_engine.setProperty('voice', voice.id)
+                        break
             except Exception as e:
                 print(f"[Voice] TTS Init Error: {e}")
                 self.has_tts_active = False

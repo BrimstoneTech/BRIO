@@ -69,11 +69,16 @@ class IdeaGenerator:
             ]
         }
 
-    def generate_thought(self, curiosity: float, joy: float) -> Optional[IdeaProposal]:
+    def generate_thought(self, curiosity: float, joy: float, knowledge_count: int) -> Optional[IdeaProposal]:
         """
         Periodically returns a new idea weighted by curiosity and Dirichlet priors.
+        Requires 'assimilated data' (knowledge_count) to function.
         """
-        if curiosity < 0.6:
+        # Data Assimilation Check: Brio needs to 'know' enough before having ideas
+        if knowledge_count < 3:
+            return None
+
+        if curiosity < 0.65: # Slightly higher threshold for 'considerate' behavior
             return None
         
         # Combine Dirichlet learning with emotional context (Eq 2 + Eq 3 hybrid)
@@ -85,6 +90,8 @@ class IdeaGenerator:
         
         for t in types:
             w = d_weights[t.value]
+            # Higher weighting for research if knowledge is growing
+            if t == IdeaType.RESEARCH and knowledge_count > 10: w *= 1.5
             if t == IdeaType.FUN and joy > 0.8: w *= 2.0
             if t == IdeaType.MAINTENANCE and joy < 0.3: w *= 2.0
             final_weights.append(w)
@@ -92,6 +99,12 @@ class IdeaGenerator:
         idea_type = random.choices(types, weights=final_weights)[0]
         description = random.choice(self.idea_pool[idea_type])
         
+        # Add dynamic 'growth' prefix to sound more evolving
+        if knowledge_count > 15:
+            description = "I've been analyzing our recent data... " + description
+        elif knowledge_count > 5:
+            description = "Based on what I've learned... " + description
+
         idea_id = f"IDEA_{int(datetime.now().timestamp())}_{len(self.history)}"
         
         for p in self.pending_ideas:

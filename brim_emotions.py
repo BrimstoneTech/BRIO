@@ -69,17 +69,17 @@ class EmotionalState:
     dominant_emotion: EmotionType = EmotionType.EMPATHY
 
     # Configuration Constants (The DNA of the system)
-    BASELINE = [0.5, 0.2, 0.7, 0.6, 0.3, 0.6]
-    DECAY_RATES = [0.05, 0.1, 0.05, 0.08, 0.08, 0.05]  # Lambda diagonal
+    # Target Baseline: Contented, Curious, and Confident
+    BASELINE = [0.5, 0.1, 0.7, 0.7, 0.2, 0.7]
+    # DECAY: Faster decay (Lambda) = More stable/considerate baseline return
+    DECAY_RATES = [0.15, 0.2, 0.1, 0.12, 0.15, 0.1]
     
-    # Interaction Matrix A (simplified as direct influence list for pragmatic python)
-    # Format: source_idx: [(target_idx, factor), ...]
-    # joy(0), failure(1), empathy(2), cur(3), concern(4), conf(5)
+    # Interaction Matrix A (Damped factors to reduce erratic behavior)
     INTERACTIONS = {
-        1: [(0, -0.1), (5, -0.2)],  # Frustration dampens Joy and Confidence
-        4: [(0, -0.2), (3, -0.1)],  # Concern dampens Joy and Curiosity
-        5: [(1, -0.1)],             # Confidence resists Frustration
-        0: [(5, 0.1)],              # Joy boosts Confidence
+        1: [(0, -0.05), (5, -0.1)],  # Frustration slightly damps Joy/Conf
+        4: [(0, -0.1), (3, -0.05)],  # Concern slightly damps Joy/Cur
+        5: [(1, -0.08)],             # Confidence resists Frustration
+        0: [(5, 0.05)],              # Joy boosts Confidence
     }
 
     # -- Property Interface for Backward Compatibility --
@@ -147,6 +147,7 @@ class EmotionalState:
     def evolve(self, dt: float = 1.0):
         """
         Evolve the emotional state over time step dt.
+        Enhanced for stability (considerate behavior).
         """
         # 1. Calculate derivatives
         delta = [0.0] * 6
@@ -156,12 +157,12 @@ class EmotionalState:
             decay_force = self.DECAY_RATES[i] * (self._vector[i] - self.BASELINE[i])
             delta[i] -= decay_force
             
-        # Interaction term
+        # Interaction term (Lower scaling for considerateness)
         for src_idx, influences in self.INTERACTIONS.items():
             src_val = self._vector[src_idx]
-            if src_val > 0.3: 
+            if src_val > 0.4: # Filter for significant emotions
                 for target_idx, factor in influences:
-                    delta[target_idx] += factor * src_val * 0.1
+                    delta[target_idx] += factor * src_val * 0.05 # Damped
         
         # 2. Integrate
         for i in range(6):

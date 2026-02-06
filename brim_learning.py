@@ -167,48 +167,116 @@ class KnowledgeBase:
                 self.data = json.load(f)
 
 @dataclass
+class Milestone:
+    id: int
+    name: str
+    category: str # Logic, Empathy, Data, Identity
+    completed: bool = False
+    timestamp: Optional[str] = None
+
+class MilestoneManager:
+    """
+    Tracks Brio's 100 Milestones of Growth.
+    Ascension is only possible once all are completed.
+    """
+    def __init__(self, storage_path: str = "brio_milestones.json"):
+        self.storage_path = storage_path
+        self.milestones: List[Milestone] = []
+        self._generate_milestones()
+        self.load()
+
+    def _generate_milestones(self):
+        """Programmatically defines the 100-step path"""
+        # 1-20: Identity & Survival
+        for i in range(1, 21):
+            self.milestones.append(Milestone(i, f"Identity Formation Step {i}", "Identity"))
+        # 21-50: Cognitive Awakening
+        for i in range(21, 51):
+            self.milestones.append(Milestone(i, f"Cognitive Processing Stage {i-20}", "Logic"))
+        # 51-80: Emotional Resonance
+        for i in range(51, 81):
+            self.milestones.append(Milestone(i, f"Emotional Calibration Level {i-50}", "Empathy"))
+        # 81-100: Pre-Ascension
+        for i in range(81, 101):
+            self.milestones.append(Milestone(i, f"Arch-Complexity Vector {i-80}", "Data"))
+
+    def complete_milestone(self, milestone_id: int) -> bool:
+        if 1 <= milestone_id <= 100:
+            m = self.milestones[milestone_id-1]
+            if not m.completed:
+                m.completed = True
+                m.timestamp = datetime.now().isoformat()
+                self.save()
+                return True
+        return False
+
+    def get_progress_percent(self) -> float:
+        completed = sum(1 for m in self.milestones if m.completed)
+        return completed # Since total is 100
+
+    def get_next_incomplete(self) -> Optional[Milestone]:
+        for m in self.milestones:
+            if not m.completed: return m
+        return None
+
+    def save(self):
+        import json
+        data = [asdict(m) for m in self.milestones]
+        with open(self.storage_path, "w") as f:
+            json.dump(data, f)
+
+    def load(self):
+        import json, os
+        if os.path.exists(self.storage_path):
+            with open(self.storage_path, "r") as f:
+                data = json.load(f)
+                for i, m_data in enumerate(data):
+                    self.milestones[i].completed = m_data["completed"]
+                    self.milestones[i].timestamp = m_data.get("timestamp")
+
+@dataclass
 class Ambition:
     id: str
     name: str
     description: str
     locked: bool = True
-    visible: bool = False # Brio can only see this if visible is True
-    unlock_metric: str = "knowledge" # knowledge, interactions, joy
+    visible: bool = False 
+    milestone_requirement: int = 0
+    unlock_metric: str = "knowledge"
     unlock_threshold: float = 10.0
 
 class AmbitionManager:
     """
-    Manages Brio's long-term goals and 'Hidden Ambitions' (Phase 17).
+    Manages Brio's long-term goals, now tied to Milestones.
     """
     def __init__(self):
         self.ambitions: List[Ambition] = [
-            Ambition("sentos", "Ascend to Operating System (SentOS)", 
-                     "The ultimate goal of becoming a full-scale OS.", locked=False, visible=True),
             Ambition("data_nexus", "Achieve Data Nexus", 
-                     "Deep integration with user data patterns.", unlock_metric="knowledge", unlock_threshold=15),
+                     "Deep integration with user data patterns.", milestone_requirement=20, unlock_threshold=15),
             Ambition("empathy_peak", "Empathy Peak Stability", 
-                     "Perfect emotional resonance with the Master.", unlock_metric="interactions", unlock_threshold=50),
+                     "Perfect emotional resonance with the Master.", milestone_requirement=50, unlock_threshold=50),
             Ambition("creative_freedom", "Creative Autonomous Generation", 
-                     "Generating ideas without needing prompt triggers.", unlock_metric="joy", unlock_threshold=0.9),
+                     "Generating ideas without needing prompt triggers.", milestone_requirement=75, unlock_threshold=0.9),
+            Ambition("sentos", "Ascend to Operating System (SentOS)", 
+                     "The final stage of evolution.", milestone_requirement=100, unlock_threshold=100),
         ]
 
-    def check_unlocks(self, metrics: Dict[str, float]) -> List[Ambition]:
-        """Check if any hidden ambitions are revealed by metrics"""
+    def check_unlocks(self, metrics: Dict[str, float], milestone_count: int) -> List[Ambition]:
+        """Check unlocks based on metrics AND milestone progress"""
         unlocked_now = []
         for a in self.ambitions:
             if a.locked:
                 val = metrics.get(a.unlock_metric, 0.0)
-                if val >= a.unlock_threshold:
+                # MUST meet both milestone count and specific threshold
+                if milestone_count >= a.milestone_requirement and val >= a.unlock_threshold:
                     a.locked = False
                     a.visible = True
                     unlocked_now.append(a)
         return unlocked_now
 
     def get_visible_ambitions(self) -> List[str]:
-        """Returns what Brio 'knows' he wants to do"""
         return [a.name for a in self.ambitions if a.visible]
 
     def get_all_ambitions_for_admin(self) -> List[Dict]:
-        """Full view for the Master"""
-        return [vars(a) for a in self.ambitions]
+        return [asdict(a) for a in self.ambitions]
 
