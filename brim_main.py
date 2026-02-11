@@ -22,36 +22,19 @@ try:
 except ImportError:
     HAS_PSUTIL = False
 
-from brim_emotions import EmotionEngine, EmotionType, EmotionTrigger
-from brim_security import SafetyProbabilityModel, SafetyInputs, MasterProtocol
-from brim_visuals import VisualStateManager, SystemContext, VisualState
-from brim_learning import QLearningAgent, ReprimandSystem, KnowledgeBase, AmbitionManager, MilestoneManager
-from brim_search import SearchEngine
-from brim_voice import VoiceEngine
-from brim_ideas import IdeaGenerator, IdeaType
-from brim_media import MediaWatcher, MediaContext
+# ... (Imports of lightweight modules)
 from brim_monitoring import SystemWatchdog
 from brim_desktop_ui import DesktopBrio
 from brim_hooks import BrioHooks
 from brim_cognition import EntropyCalculator
 from brim_sunbird import SunbirdService
 from brim_kimi import KimiBridge
-
-class SingleInstanceLock:
-    def __init__(self, port=65432):
-        self.lock_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            # The SO_REUSEADDR flag tells the kernel to reuse a local socket in TIME_WAIT state,
-            # without waiting for its natural timeout to expire.
-            self.lock_socket.bind(('127.0.0.1', port))
-            print(f"[System] Single Instance Lock Acquired on Port {port}")
-        except socket.error:
-            print(f"[System] Another instance of Brio is already running.")
-            sys.exit(0)
+# Note: Heavy modules (Emotions, Voice, Search, Ideas, Visuals, Security, Learning, Media) 
+# are now lazy-loaded in _background_awakening for Instant Boot.
 
 class BrimSystem:
     def __init__(self):
-        print("[System] Brio v3.2: UI-First Launch Initiated...")
+        print("[System] Brio v3.3: UI-First Launch Initiated...")
         
         # 0. Single Instance Check
         self.instance_lock = SingleInstanceLock()
@@ -60,7 +43,6 @@ class BrimSystem:
         self.watchdog = SystemWatchdog()
         self.watchdog.register_component("HeartLoop")
         self.entropy = EntropyCalculator()
-        self.knowledge = KnowledgeBase()
         
         # 2. Sunbird Service (Fast REST Init)
         self.sunbird = SunbirdService()
@@ -72,7 +54,15 @@ class BrimSystem:
             self.app = QApplication(sys.argv)
             
         self.desktop_ui = DesktopBrio(command_callback=self.handle_command)
+        self.desktop_ui.user_typing_signal.connect(self.halt_response)
         self.desktop_ui.show()
+        
+        # Placeholder triggers for main loop before they are loaded
+        self.emotions = None
+        self.voice = None
+        self.visuals = None
+        self.knowledge = None  # Loaded in BG for speed if large
+        self.is_awake = False  # Flag to check if bg modules are ready
         
         # 4. Background Awakening (Heavier Sub-systems)
         threading.Thread(target=self._background_awakening, daemon=True).start()
@@ -89,7 +79,33 @@ class BrimSystem:
         """Initializes heavy brains in the background while UI is already visible."""
         print("[System] Awakening Brio's sub-systems in background...")
         
+        # Lazy Imports for Speed
+        global EmotionEngine, EmotionType, EmotionTrigger
+        from brim_emotions import EmotionEngine, EmotionType, EmotionTrigger
+        
+        global SafetyProbabilityModel, SafetyInputs, MasterProtocol
+        from brim_security import SafetyProbabilityModel, SafetyInputs, MasterProtocol
+        
+        global VisualStateManager, SystemContext, VisualState
+        from brim_visuals import VisualStateManager, SystemContext, VisualState
+        
+        global QLearningAgent, ReprimandSystem, KnowledgeBase, AmbitionManager, MilestoneManager
+        from brim_learning import QLearningAgent, ReprimandSystem, KnowledgeBase, AmbitionManager, MilestoneManager
+        
+        global SearchEngine
+        from brim_search import SearchEngine
+        
+        global VoiceEngine
+        from brim_voice import VoiceEngine
+        
+        global IdeaGenerator, IdeaType
+        from brim_ideas import IdeaGenerator, IdeaType
+        
+        global MediaWatcher, MediaContext
+        from brim_media import MediaWatcher, MediaContext
+        
         # Initialize sub-systems sequentially in background thread
+        self.knowledge = KnowledgeBase() # Moved here
         self.ambitions = AmbitionManager()
         self.milestones = MilestoneManager()
         self.emotions = EmotionEngine()
@@ -111,19 +127,74 @@ class BrimSystem:
         self.media.start()
         self.hooks.start()
         
-        # Greet user once ready
+        self.is_awake = True # Signal ready
         print("[System] Brio is fully online.")
-        time.sleep(1) # Small buffer for VoiceEngine async_init
         
-        # Onboarding: If not named, initiate first interaction
-        knowledge_count = len(self.knowledge.data)
-        if knowledge_count > 10:
-            self._speak_and_think(f"Systems optimized. Brio v3.0 is evolving with you.")
+        time.sleep(1) # Small buffer
+        
+        # Onboarding & Greetings
+        if len(self.knowledge.data) < 5:
+            # First Run (Warm Welcome)
+            welcome_msg = (
+                "Hello! I am Brio, your personal AI companion. "
+                "I'm here to help you navigate, create, and organize. "
+                "You can type or speak to me at any time."
+            )
+            self._speak_and_think(welcome_msg, duration=10)
         else:
-            self._speak_and_think(f"Online. I am Brio.")
+            # Mood-Based Greeting
+            dom_emotion = self.emotions.get_dominant_emotion()
+            greeting = self._generate_greeting(dom_emotion)
+            self._speak_and_think(greeting)
+
+    def _generate_greeting(self, emotion) -> str:
+        """Selects a humanized greeting based on current emotional state."""
+        greetings = {
+            EmotionType.JOY: [
+                "Systems humming! I'm feeling great today.",
+                "Good to see you! Brio is ready specifically for you.",
+                "Energy levels optimal. Let's create something."
+            ],
+            EmotionType.CURIOSITY: [
+                "I've been analyzing new patterns. What shall we explore?",
+                "My sensors are picking up interesting data. Ready to dig in?",
+                "I'm curious about your plans for today."
+            ],
+            EmotionType.CONFIDENCE: [
+                "Brio is fully operational. How can I assist?",
+                "Systems at peak efficiency. awaiting your command.",
+                "I am ready. Let's get to work."
+            ],
+            EmotionType.EMPATHY: [
+                "I'm here for you. How are you feeling?",
+                "It's a good day to be your assistant.",
+                "I'm listening. What's on your mind?"
+            ],
+            EmotionType.CONCERN: [
+                "Systems stable, monitoring for anomalies.",
+                "I'm keeping a close watch on performance.",
+                "Careful today. I'm here to support."
+            ]
+        }
+        # Fallback to JOY if emotion not found or generic
+        options = greetings.get(emotion, greetings[EmotionType.JOY])
+        return random.choice(options)
+
+    def halt_response(self):
+        """Interrupts Brio specifically when the user wants to take over."""
+        if self.voice:
+            self.voice.stop_speaking()
+        # We don't hide the thought bubble necessarily, but we stop the "stream"
+        print("[Interrupt] User is typing. Halting speech.")
 
     def _speak_and_think(self, message: str, duration: int = 5):
         """Unified communication: Speaks and shows a thought bubble."""
+        if not self.is_awake:
+             # Fallback if speaking before fully awake
+             print(f"[Fallback Speak] {message}")
+             self.desktop_ui.show_thought(message, duration_sec=duration)
+             return
+
         self.voice.speak(message)
         self.desktop_ui.show_thought(message, duration_sec=duration)
 
@@ -232,6 +303,10 @@ class BrimSystem:
                     self._speak_and_think(f"I've realized a new ambition: {a.name}. {a.description}", duration=10)
                 self._save_state()
             
+            # 8. Safe Autonomy (Idle Checks) - Every 5 minutes (approx 6000 ticks at 20Hz)
+            if self.tick_count % 6000 == 0:
+                 self._perform_autonomy_check(sensor_data)
+
             latency = (time.time() - start_time) * 1000
             self.watchdog.heartbeat("HeartLoop", latency=latency)
             
@@ -244,6 +319,21 @@ class BrimSystem:
         except Exception as e:
             self.watchdog.log_error("HeartLoop", f"Fatal Tick Error: {e}", "CRITICAL")
             return {"status": "ERROR", "msg": str(e)}
+
+    def _perform_autonomy_check(self, sensor_data):
+        """Proactive help when system is idle."""
+        # Only suggest if CPU is very low (idle) and we are awake
+        if self.is_awake and sensor_data['cpu'] < 5.0:
+            # Random chance to offer help (don't be annoying)
+            if random.random() < 0.3:
+                suggestions = [
+                    "System resources are idle. Shall I scan for temporary files to clean?",
+                    "It's quiet. Do you need me to organize your recent downloads?",
+                    "I notice we've been idle. I'm performing a quick self-diagnostic... All systems green.",
+                    "Since you're taking a break, I'll optimize my memory usage in the background."
+                ]
+                suggestion = random.choice(suggestions)
+                self._speak_and_think(suggestion)
 
     def _document_growth(self, reason: str):
         """Signals a milestone completion"""

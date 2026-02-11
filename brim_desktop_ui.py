@@ -87,29 +87,66 @@ class DesktopBrio(QWidget):
         # 6. System Tray
         self._setup_tray()
         
+    user_typing_signal = pyqtSignal()
+
     def init_ui(self):
         self.resize(self.orb_size, self.orb_size)
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(5, 5, 5, 5)
-        self.layout.setSpacing(0)
+        self.layout.setSpacing(5)
+        
+        # Output Area (Scrolling "End Credits" Style)
+        # We use a read-only TextEdit for rich text and scrolling
+        from PyQt5.QtWidgets import QTextEdit
+        self.output_area = QTextEdit(self)
+        self.output_area.setReadOnly(True)
+        self.output_area.setFont(QFont("Segoe UI Variable Text", 10))
+        self.output_area.setStyleSheet("""
+            QTextEdit {
+                border: none;
+                background: transparent;
+                color: #222; /* High contrast dark text on yellow note */
+            }
+        """)
+        self.output_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.output_area.hide()
+        self.layout.addWidget(self.output_area)
         
         # Input Field (Hidden initially)
         self.input_field = QLineEdit(self)
-        self.input_field.setPlaceholderText("Type or speak...")
+        self.input_field.setPlaceholderText("Type to interrupt...")
         self.input_field.setFont(QFont("Segoe UI Variable Text", 9))
         self.input_field.setStyleSheet("""
             QLineEdit {
                 border: none;
-                border-bottom: 1px dashed #666;
+                border-top: 1px dashed #666;
                 background: transparent;
-                padding: 2px;
+                padding: 4px;
                 color: #222;
             }
         """)
         self.input_field.returnPressed.connect(self._on_submit)
+        self.input_field.textChanged.connect(self._on_user_typing)
         self.input_field.hide()
-        self.layout.addStretch()
+        
         self.layout.addWidget(self.input_field)
+
+        # Scroll Timer
+        self.scroll_timer = QTimer(self)
+        self.scroll_timer.timeout.connect(self._scroll_text)
+        
+    def _on_user_typing(self):
+        if self.input_field.text():
+            self.user_typing_signal.emit()
+            self.scroll_timer.stop() # Stop scrolling if user types
+            
+    def _scroll_text(self):
+        # Auto-scroll down
+        vsb = self.output_area.verticalScrollBar()
+        if vsb.value() < vsb.maximum():
+            vsb.setValue(vsb.value() + 1)
+        else:
+            self.scroll_timer.stop()
         
     def _pos_init(self):
         screen = QApplication.primaryScreen().size()
@@ -157,14 +194,34 @@ class DesktopBrio(QWidget):
         self.is_expanded = expanded
         if expanded:
             self.resize(self.expanded_size, self.expanded_size)
+            self.output_area.show()
             self.input_field.show()
-            self.input_field.setFocus()
+            self.input_field.setFocus() # Focus here so they can type to interrupt
             self._start_audio()
         else:
+            self.scroll_timer.stop()
             self.resize(self.orb_size, self.orb_size)
+            self.output_area.hide()
             self.input_field.hide()
             self._stop_audio()
         self.update()
+
+    def _on_thought_signal(self, text, duration):
+        self._toggle_expanded(True)
+        # Set text to the scrolling area
+        self.output_area.setText(text)
+        self.output_area.verticalScrollBar().setValue(0)
+        
+        # Start scrolling if text is long enough, otherwise just show it
+        # Speed: 50ms per pixel scroll
+        self.scroll_timer.start(50) 
+        
+        # Auto-hide after duration (unless user is typing)
+        QTimer.singleShot(duration * 1000, lambda: self._check_autohide())
+
+    def _check_autohide(self):
+        if not self.input_field.text():
+            self._toggle_expanded(False)
 
     def _start_audio(self):
         if not self.stream:
