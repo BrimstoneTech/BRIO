@@ -8,7 +8,7 @@ echo ""
 # 1. Update & Install Core Tools
 echo "[1/4] Updating Termux packages..."
 pkg update -y && pkg upgrade -y
-pkg install python git termux-api clang make libjpeg-turbo -y
+pkg install python git termux-api clang make libjpeg-turbo espeak -y
 
 # 2. Check for Repo
 if [ -d "Brio" ]; then

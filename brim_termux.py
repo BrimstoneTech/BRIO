@@ -1,3 +1,4 @@
+import shutil
 import os
 import sys
 import subprocess
@@ -27,6 +28,10 @@ class AndroidBrio:
         self.watchdog = SystemWatchdog()
         self.search = SearchEngine(self.watchdog)
         
+        # Check Capabilities
+        self.has_termux_api = shutil.which("termux-tts-speak") is not None
+        self.has_espeak = shutil.which("espeak") is not None
+        
         # Identity
         self.name = "Brio"
         self._say_hello()
@@ -42,13 +47,23 @@ class AndroidBrio:
         self.speak(random.choice(greetings))
 
     def speak(self, text):
-        """Uses Termux API to speak."""
+        """Uses Termux API or ESpeak to speak."""
         print(f"[{self.name}] {text}") 
-        # Call termux-tts-speak in background
-        subprocess.Popen(['termux-tts-speak', text])
+        
+        if self.has_termux_api:
+            subprocess.Popen(['termux-tts-speak', text])
+        elif self.has_espeak:
+            # Fallback to robotic espeak
+            subprocess.Popen(['espeak', text])
+        else:
+            # Silent mode (Text only)
+            pass
 
     def listen(self):
-        """Uses Termux API to get speech input (Google Voice Input)."""
+        """Uses Termux API to get speech input."""
+        if not self.has_termux_api:
+            return None # Force text mode
+            
         print("[Listening] Tap microphone on popup...")
         try:
             # -p prompt text
@@ -64,7 +79,8 @@ class AndroidBrio:
         print("=================================")
         print(" COMMANDS:")
         print("  type:  Manual text input")
-        print("  speak: Voice input")
+        if self.has_termux_api:
+            print("  speak: Voice input")
         print("  exit:  Shutdown")
         print("=================================")
 
@@ -75,7 +91,7 @@ class AndroidBrio:
                 self.speak("Shutting down mobile link.")
                 break
             
-            elif choice == "speak":
+            elif choice == "speak" and self.has_termux_api:
                 user_text = self.listen()
                 if user_text:
                     print(f"You said: {user_text}")
