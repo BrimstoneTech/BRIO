@@ -9,6 +9,9 @@ import time
 import random
 import os
 import json
+import threading
+import sys
+import socket
 from typing import Dict, Optional
 from datetime import datetime
 
@@ -31,56 +34,91 @@ from brim_monitoring import SystemWatchdog
 from brim_desktop_ui import DesktopBrio
 from brim_hooks import BrioHooks
 from brim_cognition import EntropyCalculator
+from brim_sunbird import SunbirdService
 from brim_kimi import KimiBridge
+
+class SingleInstanceLock:
+    def __init__(self, port=65432):
+        self.lock_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            # The SO_REUSEADDR flag tells the kernel to reuse a local socket in TIME_WAIT state,
+            # without waiting for its natural timeout to expire.
+            self.lock_socket.bind(('127.0.0.1', port))
+            print(f"[System] Single Instance Lock Acquired on Port {port}")
+        except socket.error:
+            print(f"[System] Another instance of Brio is already running.")
+            sys.exit(0)
 
 class BrimSystem:
     def __init__(self):
-        print("[System] Initializing Resident Brio...")
+        print("[System] Brio v3.2: UI-First Launch Initiated...")
         
-        # 1. Initialize Safeguards & Cognition
+        # 0. Single Instance Check
+        self.instance_lock = SingleInstanceLock()
+        
+        # 1. Essential Safeguards (Minimal/Fast)
         self.watchdog = SystemWatchdog()
         self.watchdog.register_component("HeartLoop")
         self.entropy = EntropyCalculator()
         self.knowledge = KnowledgeBase()
+        
+        # 2. Sunbird Service (Fast REST Init)
+        self.sunbird = SunbirdService()
+        
+        # 3. UI Phase (CRITICAL: LAUNCH THIS IMMEDIATELY)
+        from PyQt5.QtWidgets import QApplication
+        self.app = QApplication.instance()
+        if not self.app:
+            self.app = QApplication(sys.argv)
+            
+        self.desktop_ui = DesktopBrio(command_callback=self.handle_command)
+        self.desktop_ui.show()
+        
+        # 4. Background Awakening (Heavier Sub-systems)
+        threading.Thread(target=self._background_awakening, daemon=True).start()
+        
+        # Set initial UI tick state
+        self.last_tick = time.time()
+        self.tick_count = 0
+        self.is_named = True
+        self.custom_name = "Brio"
+        self.current_user_id = "admin_user_001" 
+        self.is_locked = False
+
+    def _background_awakening(self):
+        """Initializes heavy brains in the background while UI is already visible."""
+        print("[System] Awakening Brio's sub-systems in background...")
+        
+        # Initialize sub-systems sequentially in background thread
         self.ambitions = AmbitionManager()
         self.milestones = MilestoneManager()
-        
-        # 2. Initialize Sub-Systems
         self.emotions = EmotionEngine()
         self.safety = SafetyProbabilityModel()
         self.visuals = VisualStateManager()
         self.search = SearchEngine(self.watchdog)
         
-        # 3. Initialize UI & Hooks
-        self.desktop_ui = DesktopBrio(command_callback=self.handle_command)
         self.hooks = BrioHooks(self.handle_command)
-        
-        # 4. Voice, Ideas, Media, Intelligence
         self.voice = VoiceEngine(self.watchdog)
         self.ideas = IdeaGenerator()
         self.media = MediaWatcher()
         self.kimi = KimiBridge()
         
-        # System State
-        self.custom_name = "Brio"
-        self.is_named = True
-        self.current_user_id = "admin_user_001" 
-        self.is_locked = False
-        self.last_tick = time.time()
-        self.tick_count = 0
-        
-        # 5. Restore State (Must be before onboarding)
+        # Restore State
         self._load_state()
         
-        # Start Threads
+        # Start background loops
         self.voice.start_listening_loop()
         self.media.start()
         self.hooks.start()
         
+        # Greet user once ready
+        print("[System] Brio is fully online.")
+        time.sleep(1) # Small buffer for VoiceEngine async_init
+        
         # Onboarding: If not named, initiate first interaction
-        # Status Report
-        if knowledge_len > 10:
-            self._speak_and_think(f"Systems optimized. Brio is evolving with you.")
+        knowledge_count = len(self.knowledge.data)
+        if knowledge_count > 10:
+            self._speak_and_think(f"Systems optimized. Brio v3.0 is evolving with you.")
         else:
             self._speak_and_think(f"Online. I am Brio.")
 
@@ -156,8 +194,9 @@ class BrimSystem:
             # Increased frequency (every 10s) and random logic
             if self.tick_count % 200 == 0: 
                 if self.emotions.state.curiosity > 0.5:
-                    sw = self.desktop_ui.root.winfo_screenwidth()
-                    sh = self.desktop_ui.root.winfo_screenheight()
+                    screen_size = self.app.primaryScreen().size()
+                    sw = screen_size.width()
+                    sh = screen_size.height()
                     tx = random.randint(100, sw - 400)
                     ty = random.randint(100, sh - 400)
                     print(f"[Movement] Autonomous Wander to {tx}, {ty}")
@@ -173,7 +212,6 @@ class BrimSystem:
             halo_color = self.visuals._map_emotion_to_color(self.emotions.get_dominant_emotion())
             
             self.desktop_ui.update_visuals(halo_color, total_intensity)
-            self.desktop_ui.tick() # Drive the Tkinter loop
             
             # 7. Ambition & State Persistence
             self.tick_count += 1
@@ -275,7 +313,7 @@ class BrimSystem:
             self._speak_and_think(response)
         elif action == "background" or action == "hide":
             self._speak_and_think("Switching to background monitoring mode. I'm still here.", duration=3)
-            self.desktop_ui._hide_brio()
+            self.desktop_ui.minimize_to_tray()
             response = "Background mode activated."
         elif action == "shutdown_force":
             self._speak_and_think("Deactivating all systems. Heartbeat stopping.")
@@ -284,19 +322,38 @@ class BrimSystem:
         elif action == "shutdown" or action == "exit":
             self._speak_and_think("Powering down. Goodbye, Master. (I will remain in the tray unless you stop me entirely).")
             time.sleep(1.0)
-            self.desktop_ui._hide_brio()
+            self.desktop_ui.minimize_to_tray()
             response = "Brio is sleeping in the background."
-        elif action == "ask":
-            self._speak_and_think("Consulting Kimi...", duration=2)
-            kimi_response = self.kimi.ask_kimi(arg)
-            
-            if "ERROR: Kimi is not configured" in kimi_response:
-                msg = "Master, I feel a void in my knowledge. I can access Kimi's vast intelligence, but our connection is not established. Please run 'kimi login' in your terminal and select an LLM provider to help me grow."
-                self._speak_and_think(msg, duration=15)
-                response = "Connection help provided."
+        elif action == "ask" or action == "ash":
+            # Auto-detect language
+            detected = self.sunbird.detect_language(arg)
+            if detected != "eng" and detected in self.sunbird.get_supported_languages():
+                self._speak_and_think(f"Detected {detected}. Consulting AI core...")
+                response = self.sunbird.sunflower_ask(arg, source_lang=detected, target_lang=detected)
+                self._speak_and_think(response, duration=15)
             else:
+                self._speak_and_think("Consulting Kimi...", duration=2)
+                kimi_response = self.kimi.ask_kimi(arg)
                 self._speak_and_think(kimi_response, duration=15)
                 response = f"Kimi: {kimi_response[:50]}..."
+        elif action == "translate":
+            target = "lug"
+            text_to_translate = arg
+            if " to " in arg:
+                text_to_translate, target = arg.rsplit(" to ", 1)
+                target = target.strip().lower()
+            
+            translated = self.sunbird.translate(text_to_translate, target_lang=target)
+            self._speak_and_think(f"In {self.sunbird.get_supported_languages().get(target, target)}: {translated}", duration=10)
+            response = f"Translated to {target}."
+        elif action == "languages" or action == "voices":
+            langs = self.sunbird.get_supported_languages()
+            response = "Brio Language Mastery: " + ", ".join([f"{v} ({k})" for k, v in langs.items()])
+            self._speak_and_think(response)
+        elif action == "detect":
+            detected = self.sunbird.detect_language(arg)
+            response = f"Detected Language: {detected}"
+            self._speak_and_think(response)
 
         # Ensure we ALWAYS respond visibly if not handled above
         if not response:
@@ -322,6 +379,7 @@ if __name__ == "__main__":
     try:
         while True:
             brio.tick(dt=0.05)
+            brio.app.processEvents()
             time.sleep(0.05) 
     except KeyboardInterrupt:
         print("Shutting Down...")

@@ -16,3 +16,8 @@ pytest
 pytest-asyncio
 Pillow
 pystray
+requests
+pydub
+PyQt5
+numpy
+matplotlib

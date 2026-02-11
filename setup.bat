@@ -67,25 +67,50 @@ if %errorlevel% neq 0 (
 echo [INFO] Generating High-Res Sentinel Orb Icon...
 .venv\Scripts\python create_icon.py
 
-:: 6. Create Desktop Shortcut
+:: 6. Create Desktop Shortcut (Robust Method)
 echo [INFO] Generating Desktop Shortcut...
 set "SCRIPT_PATH=%~dp0brim_main.py"
 set "ICON_PATH=%~dp0assets\brio_icon.ico"
-set "SHORTCUT_PATH=%USERPROFILE%\Desktop\Brio AI.lnk"
 set "EXE_PATH=%~dp0.venv\Scripts\pythonw.exe"
 
-:: Use PowerShell with robust quoting for spaces
-powershell -Command "$ws=New-Object -ComObject WScript.Shell; $s=$ws.CreateShortcut('%SHORTCUT_PATH%'); $s.TargetPath='%EXE_PATH%'; $s.Arguments='\"%SCRIPT_PATH%\"'; $s.WorkingDirectory='%~dp0'; $s.WindowStyle=7; if(Test-Path '%ICON_PATH%'){$s.IconLocation='%ICON_PATH%'}; $s.Save()"
+:: Detect Desktop Path (checks OneDrive first)
+for /f "usebackq tokens=2,*" %%A in (`reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" /v Desktop`) do (
+    set "DESKTOP_DIR=%%B"
+)
+:: Expand environment variables in the path
+for /f "delims=" %%i in ('powershell -Command "[System.Environment]::ExpandEnvironmentVariables('%DESKTOP_DIR%')"') do set "DESKTOP_DIR=%%i"
+set "SHORTCUT_PATH=%DESKTOP_DIR%\Brio AI.lnk"
+
+echo [INFO] Target: %SHORTCUT_PATH%
+
+powershell -Command ^
+    "$ws = New-Object -ComObject WScript.Shell; ^
+     $s = $ws.CreateShortcut('%SHORTCUT_PATH%'); ^
+     $s.TargetPath = '%EXE_PATH%'; ^
+     $s.Arguments = '\"%SCRIPT_PATH%\"'; ^
+     $s.WorkingDirectory = '%~dp0'; ^
+     $s.WindowStyle = 7; ^
+     if(Test-Path '%ICON_PATH%'){$s.IconLocation = '%ICON_PATH%'}; ^
+     $s.Save()"
+
+if %errorlevel% neq 0 (
+    echo [ERROR] Shortcut creation failed. Check PowerShell permissions.
+) else (
+    echo [SUCCESS] Brio AI Shortcut created on Desktop.
+)
 
 echo.
 echo ==========================================
 echo   INSTALLATION SUCCESSFUL!
 echo.
-echo   - Sentinel Orb: READY
+echo   - Brio v3.1: READY
+echo   - Sticky Note Visualizer: INTEGRATED
 echo   - Desktop Icon: APPLIED
-echo   - Status: V2.2 Professional Baseline
 echo.
-echo   NOTE: If the icon doesn't show immediately, 
-echo   right-click your Desktop and select 'Refresh'.
+echo   - START: Double-click 'Brio AI' on your Desktop.
+echo   - USE: Hover for the Sticky Note Visualizer.
+echo.
+echo   NOTE: If the icon is blank, right-click 
+echo   Desktop and select 'Refresh'.
 echo ==========================================
 pause

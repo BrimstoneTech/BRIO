@@ -114,14 +114,14 @@ class VisualStateManager:
         return assets.get(self.current_state, "assets/error.glb")
 
     def _map_emotion_to_color(self, emotion_type: 'EmotionType') -> str:
-        """Maps emotional dimension to a specific HEX color for the Halo"""
+        """Maps emotional dimension to a specific HEX color (Signature v3.0 Palette)"""
         from brim_emotions import EmotionType
         mapping = {
-            EmotionType.JOY: "#FFD700",         # Gold
-            EmotionType.FRUSTRATION: "#FF4500",  # OrangeRed
-            EmotionType.EMPATHY: "#FF69B4",    # HotPink
-            EmotionType.CURIOSITY: "#9370DB",   # MediumPurple
-            EmotionType.CONCERN: "#DC143C",     # Crimson
-            EmotionType.CONFIDENCE: "#00BFFF",    # DeepSkyBlue
+            EmotionType.JOY: "#99E2B4",         # Soft Green (Growth/Harmony)
+            EmotionType.FRUSTRATION: "#FFB38A",  # Soft Orange (Transition/Positivity)
+            EmotionType.EMPATHY: "#FFD8BE",    # Warm Peach (Inclusive/Welcoming)
+            EmotionType.CURIOSITY: "#B79CED",   # Lavender (Creativity/Wisdom)
+            EmotionType.CONCERN: "#E0E1DD",     # Warm Gray (Safety/Balance)
+            EmotionType.CONFIDENCE: "#70D6FF",    # Light Blue (Trust/Reliability)
         }
-        return mapping.get(emotion_type, "#00FFFF")
+        return mapping.get(emotion_type, "#70D6FF")

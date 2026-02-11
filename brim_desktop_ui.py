@@ -1,247 +1,299 @@
-import tkinter as tk
-from typing import Tuple, Dict, Optional
+import sys
+import numpy as np
 import math
-import os
-from PIL import Image, ImageTk, ImageEnhance, ImageChops
 import time
+import threading
 import pystray
 from pystray import MenuItem as item
-import threading
+from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLineEdit, 
+                             QSizeGrip, QMenu, QAction)
+from PyQt5.QtCore import Qt, QTimer, QRectF, QPoint, pyqtSignal, QObject
+from PyQt5.QtGui import QPainter, QColor, QPen, QBrush, QPainterPath, QIcon, QFont, QLinearGradient, QRadialGradient
+try:
+    import pyaudio
+    HAS_PYAUDIO = True
+except ImportError:
+    HAS_PYAUDIO = False
+    
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+    
+from PIL import Image, ImageDraw
 
-class DesktopBrio:
+class UIBridge(QObject):
+    """Thread-safe bridge for signals from the Brain to the UI."""
+    thought_signal = pyqtSignal(str, int)
+    visual_signal = pyqtSignal(str, float)
+    hide_signal = pyqtSignal()
+    show_signal = pyqtSignal()
+
+class DesktopBrio(QWidget):
     """
-    A native transparent desktop resident (sprite).
-    Moves smoothly and reacts visually to Brio's internal state.
-    Upgraded to 'Sentinel Orb' v2.7 (Zero-Box Transparency & Better Interaction).
+    Brio v3.1 (PyQt5)
+    Minimalist 20x20px pulse UI that expands into a Sticky Note Visualizer.
     """
     def __init__(self, command_callback=None):
-        self.root = tk.Tk()
-        self.root.title("Brio Resident")
+        super().__init__()
         self.command_callback = command_callback
+        self.bridge = UIBridge()
         
-        # 1. Window Configuration
-        self.root.overrideredirect(True) 
-        self.root.attributes("-topmost", True)
-        
-        # Transparent black-key for robust keying on Windows
-        self.trans_color = "#000101" 
-        self.root.config(bg=self.trans_color)
-        self.root.wm_attributes("-transparentcolor", self.trans_color)
-        
-        # 2. Sprite Canvas
-        self.size = 140
-        self.scale = 1.0 
-        self.bubble_width = 240
-        self.canvas_height = 200 
-        self.canvas = tk.Canvas(self.root, width=self.size + self.bubble_width, height=self.canvas_height, 
-                               bg=self.trans_color, highlightthickness=0, bd=0)
-        self.canvas.pack()
-        
-        # 3. Animation & Position State
-        self.pulse_phase = 0.0
-        self.current_rgb = (0, 229, 255)
+        # 1. State & Constants
+        self.is_expanded = False
+        self.orb_size = 20
+        self.expanded_size = 200
+        self.current_rgb = (112, 214, 255) # Light Blue
         self.intensity = 0.5
-        self.bubble_timer = 0
-        self._drag_data = {"x": 0, "y": 0}
-
-        # 4. Visual Assets
-        self.asset_path = "assets/orb_base.png"
-        self.orb_image_raw = None
-        self.orb_photo = None
-        self.halo_id = None
-        self._setup_visual_layers()
+        self.pulse_phase = 0.0
         
-        # 5. UI Elements: Thought Bubble
-        self.bubble = self.canvas.create_rectangle(self.size, 40, self.size + self.bubble_width - 10, 140,
-                                                  fill="#121212", outline="#2a2a2a", state="hidden")
-        self.bubble_text = self.canvas.create_text(self.size + 15, 90, text="", 
-                                                   fill="#00e5ff", font=("Consolas", 10), width=self.bubble_width-40,
-                                                   anchor="w", state="hidden")
+        # Audio Visualizer State
+        self.CHUNK = 1024
+        self.FORMAT = 8 # pyaudio.paInt16 fallback
+        self.CHANNELS = 1
+        self.RATE = 44100
+        self.p = None
+        self.stream = None
+        self.audio_data = None
         
-        # 6. Input Widget (Hover Prompt)
-        self.input_field = tk.Entry(self.root, bg="#1a1a1a", fg="#00e5ff", insertbackground="#00e5ff",
-                                    borderwidth=0, font=("Consolas", 12), justify="center")
-        self.input_window = self.canvas.create_window(self.size//2, 25, window=self.input_field, 
-                                                      width=self.size, state="hidden")
+        if HAS_PYAUDIO and HAS_NUMPY:
+            try:
+                self.p = pyaudio.PyAudio()
+                self.FORMAT = pyaudio.paInt16
+                self.audio_data = np.zeros(self.CHUNK)
+            except:
+                pass
         
-        self.input_field.bind("<Return>", self._on_input_submit)
+        # 2. Window Setup
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.init_ui()
         
-        # 7. Context Menu
-        self.menu = tk.Menu(self.root, tearoff=0, bg="#121212", fg="#00e5ff", activebackground="#00e5ff", activeforeground="#121212")
-        self.menu.add_command(label="Brio Analytics", command=lambda: self._trigger_cmd("settings"))
-        self.menu.add_command(label="Ascension Milestones", command=lambda: self._trigger_cmd("milestones"))
-        self.menu.add_separator()
-        self.menu.add_command(label="Hide to Tray", command=self._hide_brio)
-        self.menu.add_command(label="Sleep / Power Off", command=lambda: self._trigger_cmd("shutdown"))
+        # 3. Signals
+        self.bridge.thought_signal.connect(self._on_thought_signal)
+        self.bridge.visual_signal.connect(self._on_visual_signal)
+        self.bridge.hide_signal.connect(self.hide)
+        self.bridge.show_signal.connect(self.show)
         
-        # 8. Bindings
-        self.canvas.tag_bind(self.halo_id, "<Enter>", lambda e: self._show_input(True))
-        self.root.bind("<Leave>", lambda e: self._handle_leave(e))
-        self.root.bind("<Button-1>", self._start_drag)
-        self.root.bind("<B1-Motion>", self._do_drag)
-        self.root.bind("<MouseWheel>", self._on_resize)
-        self.root.bind("<Button-3>", self._show_menu)
+        # 4. Timers
+        self.timer = QTimer()
+        self.timer.timeout.connect(self._on_tick)
+        self.timer.start(50) # 20Hz logic
         
-        # 9. Initial Position
-        sw = self.root.winfo_screenwidth()
-        self.x = sw - (self.size + self.bubble_width + 50)
-        self.y = 50
-        self.target_x, self.target_y = self.x, self.y
-        self._update_geometry()
-
-        # 10. System Tray Setup
-        self.tray_icon = None
+        # 5. Position
+        self._pos_init()
+        
+        # 6. System Tray
         self._setup_tray()
+        
+    def init_ui(self):
+        self.resize(self.orb_size, self.orb_size)
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(5, 5, 5, 5)
+        self.layout.setSpacing(0)
+        
+        # Input Field (Hidden initially)
+        self.input_field = QLineEdit(self)
+        self.input_field.setPlaceholderText("Type or speak...")
+        self.input_field.setFont(QFont("Segoe UI Variable Text", 9))
+        self.input_field.setStyleSheet("""
+            QLineEdit {
+                border: none;
+                border-bottom: 1px dashed #666;
+                background: transparent;
+                padding: 2px;
+                color: #222;
+            }
+        """)
+        self.input_field.returnPressed.connect(self._on_submit)
+        self.input_field.hide()
+        self.layout.addStretch()
+        self.layout.addWidget(self.input_field)
+        
+    def _pos_init(self):
+        screen = QApplication.primaryScreen().size()
+        self.x = screen.width() - 60
+        self.y = 60
+        self.target_x = self.x
+        self.target_y = self.y
+        self.move(int(self.x), int(self.y))
 
     def _setup_tray(self):
-        """Initializes the system tray icon and menu"""
-        if os.path.exists(self.asset_path):
-            image = Image.open(self.asset_path)
-        else:
-            image = Image.new('RGB', (64, 64), (0, 229, 255))
-            
+        img = Image.new('RGB', (64, 64), (18, 18, 18))
+        draw = ImageDraw.Draw(img)
+        draw.ellipse((10, 10, 54, 54), fill=(112, 214, 255))
+        
         menu = (
-            item('Restore Brio', self._show_brio, default=True),
-            item('Background Hub', lambda: self._trigger_cmd("settings")),
-            item('Exit Brio Entirely', self._on_exit_entirely)
+            item('Restore Brio', lambda: self.bridge.show_signal.emit(), default=True),
+            item('Settings', lambda: self._trigger_cmd("settings")),
+            item('Exit', self._on_exit_entirely)
         )
-        self.tray_icon = pystray.Icon("Brio", image, "Brio Resident", menu)
-        # Run tray in a separate thread to not block Tkinter
+        self.tray_icon = pystray.Icon("Brio", img, "Brio", menu)
         threading.Thread(target=self.tray_icon.run, daemon=True).start()
 
-    def _show_brio(self, icon=None, item=None):
-        self.root.deiconify()
-        self.root.lift()
-        self.root.attributes("-topmost", True)
-
-    def _hide_brio(self):
-        self.root.withdraw()
-
     def _on_exit_entirely(self, icon=None, item=None):
-        if self.tray_icon:
-            self.tray_icon.stop()
+        if self.tray_icon: self.tray_icon.stop()
         self._trigger_cmd("shutdown_force")
 
-    def _trigger_cmd(self, cmd: str):
+    def _trigger_cmd(self, cmd):
         if self.command_callback: self.command_callback(cmd)
-
-    def _show_menu(self, event):
-        self.menu.post(event.x_root, event.y_root)
-
-    def _update_geometry(self):
-        w = int((self.size + self.bubble_width) * self.scale)
-        h = int(self.canvas_height * self.scale)
-        self.root.geometry(f"{w}x{h}+{int(self.x)}+{int(self.y)}")
-        # Re-apply transparency key after geometry change (safety for some Windows versions)
-        self.root.wm_attributes("-transparentcolor", self.trans_color)
-
-    def _setup_visual_layers(self):
-        if os.path.exists(self.asset_path):
-            img = Image.open(self.asset_path).convert("RGBA")
-            self.orb_image_raw = img.resize((self.size, self.size), Image.Resampling.LANCZOS)
-            self._render_procedural_orb()
-        else:
-            self.halo_id = self.canvas.create_oval(10, 40, self.size-10, self.size+150, fill="#00e5ff", outline="")
-
-    def _render_procedural_orb(self):
-        if not self.orb_image_raw: return
-        cs = int(self.size * self.scale)
-        scaled_base = self.orb_image_raw.resize((cs, cs), Image.Resampling.LANCZOS)
+    
+    def minimize_to_tray(self):
+        self.hide()
         
-        pulse = 0.9 + 0.2 * abs(math.sin(self.pulse_phase))
-        tint = Image.new("RGBA", scaled_base.size, self.current_rgb + (int(255 * 0.25),))
-        blended = ImageChops.screen(scaled_base, tint)
-        
-        enhancer = ImageEnhance.Brightness(blended)
-        final_img = enhancer.enhance(pulse * self.intensity * 2.5)
-        
-        self.orb_photo = ImageTk.PhotoImage(final_img)
-        off_y = 50 * self.scale
-        if self.halo_id:
-            self.canvas.itemconfig(self.halo_id, image=self.orb_photo)
-            self.canvas.coords(self.halo_id, cs//2, cs//2 + off_y)
-        else:
-            self.halo_id = self.canvas.create_image(cs//2, cs//2 + off_y, image=self.orb_photo)
-
-    def _start_drag(self, event):
-        self._drag_data["x"] = event.x
-        self._drag_data["y"] = event.y
-
-    def _do_drag(self, event):
-        dx = event.x - self._drag_data["x"]
-        dy = event.y - self._drag_data["y"]
-        self.x += dx
-        self.y += dy
-        self.target_x, self.target_y = self.x, self.y
-        self._update_geometry()
-
-    def _on_resize(self, event):
-        inc = 0.1 if event.delta > 0 else -0.1
-        self.scale = max(0.4, min(2.5, self.scale + inc))
-        self._update_geometry()
-        self._render_procedural_orb()
-
-    def _show_input(self, visible: bool):
-        state = "normal" if visible else "hidden"
-        self.canvas.itemconfig(self.input_window, state=state)
-        if visible: self.input_field.focus_set()
-
-    def _handle_leave(self, event):
-        if self.root.focus_get() != self.input_field: self._show_input(False)
-
-    def _on_input_submit(self, event):
-        cmd = self.input_field.get().strip()
-        if cmd and self.command_callback: self.command_callback(cmd)
-        self.input_field.delete(0, tk.END)
-        self._show_input(False)
-        self.root.focus_set()
-
-    def _interpolate_movement(self):
-        dx = self.target_x - self.x
-        dy = self.target_y - self.y
-        if abs(dx) > 1 or abs(dy) > 1:
-            self.x += dx * 0.12
-            self.y += dy * 0.12
-            self._update_geometry()
-
-    def tick(self):
-        self._interpolate_movement()
-        self.pulse_phase += 0.08
-        self._render_procedural_orb()
-        
-        if self.bubble_timer > 0:
-            self.bubble_timer -= 1
-            if self.bubble_timer == 0:
-                self.canvas.itemconfig(self.bubble, state="hidden")
-                self.canvas.itemconfig(self.bubble_text, state="hidden")
-        
-        try:
-            self.root.update_idletasks()
-            self.root.update()
-        except: pass
-
-    def set_target(self, x: int, y: int):
+    def set_target(self, x, y):
         self.target_x = x
         self.target_y = y
 
+    def _on_submit(self):
+        text = self.input_field.text().strip()
+        if text: self._trigger_cmd(text)
+        self.input_field.clear()
+        self._toggle_expanded(False)
+
+    def _toggle_expanded(self, expanded: bool):
+        if self.is_expanded == expanded: return
+        self.is_expanded = expanded
+        if expanded:
+            self.resize(self.expanded_size, self.expanded_size)
+            self.input_field.show()
+            self.input_field.setFocus()
+            self._start_audio()
+        else:
+            self.resize(self.orb_size, self.orb_size)
+            self.input_field.hide()
+            self._stop_audio()
+        self.update()
+
+    def _start_audio(self):
+        if not self.stream:
+            try:
+                self.stream = self.p.open(
+                    format=self.FORMAT, channels=self.CHANNELS, rate=self.RATE,
+                    input=True, frames_per_buffer=self.CHUNK,
+                    stream_callback=self._audio_callback
+                )
+            except: pass
+
+    def _stop_audio(self):
+        if self.stream:
+            self.stream.stop_stream()
+            self.stream.close()
+            self.stream = None
+
+    def _audio_callback(self, in_data, frame_count, time_info, status):
+        self.audio_data = np.frombuffer(in_data, dtype=np.int16)
+        return (None, pyaudio.paContinue)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        if self.is_expanded:
+            # Draw Sticky Note with Gradient
+            grad = QLinearGradient(0, 0, 0, self.height())
+            grad.setColorAt(0, QColor("#FFFFA5")) # Classic Sticky Yellow
+            grad.setColorAt(1, QColor("#FEF08A")) # Slightly darker yellow
+            
+            painter.setBrush(grad)
+            painter.setPen(QPen(QColor(0, 0, 0, 40), 1)) # Light border
+            painter.drawRoundedRect(5, 5, self.width()-10, self.height()-10, 10, 10)
+            
+            # Draw Visualizer
+            if self.audio_data is not None:
+                painter.setPen(QPen(QColor(112, 214, 255), 2))
+                norm_data = self.audio_data / 32768.0
+                step = self.width() / len(norm_data)
+                path = QPainterPath()
+                path.moveTo(0, self.height() * 0.8)
+                for i, val in enumerate(norm_data[::4]): # Sampled for performance
+                    x = i * step * 4
+                    y = self.height() * 0.8 - val * 30
+                    path.lineTo(x, y)
+                painter.drawPath(path)
+        else:
+            # Draw Brio Orb with Glow
+            self.pulse_phase += 0.1
+            pulse = 0.7 + 0.3 * abs(math.sin(self.pulse_phase))
+            
+            r = int(self.current_rgb[0] * pulse)
+            g = int(self.current_rgb[1] * pulse)
+            b = int(self.current_rgb[2] * pulse)
+            
+            # Glow effect
+            glow = QRadialGradient(self.width()/2, self.height()/2, self.orb_size/2)
+            glow.setColorAt(0, QColor(r, g, b, 255))
+            glow.setColorAt(0.8, QColor(r, g, b, 150))
+            glow.setColorAt(1, QColor(r, g, b, 0))
+            
+            painter.setBrush(glow)
+            painter.setPen(Qt.NoPen)
+            painter.drawEllipse(0, 0, self.width(), self.height())
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.drag_pos = event.globalPos() - self.frameGeometry().topLeft()
+        elif event.button() == Qt.RightButton:
+            self._show_context_menu(event.globalPos())
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.LeftButton:
+            self.move(event.globalPos() - self.drag_pos)
+
+    def enterEvent(self, event):
+        self._toggle_expanded(True)
+
+    def leaveEvent(self, event):
+        if not self.input_field.hasFocus():
+            self._toggle_expanded(False)
+
+    def _show_context_menu(self, pos):
+        menu = QMenu(self)
+        menu.setStyleSheet("QMenu { background-color: #121212; color: #70D6FF; border: 1px solid #2a2a2a; }")
+        act_hide = menu.addAction("Hide to Tray")
+        act_shutdown = menu.addAction("Shutdown")
+        
+        action = menu.exec_(pos)
+        if action == act_hide: self.hide()
+        elif action == act_shutdown: self._trigger_cmd("shutdown")
+
+    def _on_tick(self):
+        # Movement Interpolation (Smooth Follow)
+        dx = self.target_x - self.x
+        dy = self.target_y - self.y
+        if abs(dx) > 1 or abs(dy) > 1:
+            self.x += dx * 0.1
+            self.y += dy * 0.1
+            self.move(int(self.x), int(self.y))
+            
+        self.update()
+
+    # Public API for Brain
     def show_thought(self, text: str, duration_sec: int = 5):
-        self.canvas.itemconfig(self.bubble, state="normal")
-        self.canvas.itemconfig(self.bubble_text, state="normal", text=text)
-        self.bubble_timer = int(duration_sec * 20)
-        self.root.lift() # Ensure bubble is visible
+        self.bridge.thought_signal.emit(text, duration_sec)
 
     def update_visuals(self, color: str, intensity: float):
+        self.bridge.visual_signal.emit(color, intensity)
+
+    def _on_thought_signal(self, text, duration):
+        self._toggle_expanded(True)
+        self.input_field.setText(text)
+        QTimer.singleShot(duration * 1000, lambda: self._toggle_expanded(False))
+
+    def _on_visual_signal(self, color_hex, intensity):
         try:
-            h = color.lstrip('#')
+            h = color_hex.lstrip('#')
             self.current_rgb = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
-        except: self.current_rgb = (0, 229, 255)
-        self.intensity = max(0.2, min(1.0, intensity))
+        except: self.current_rgb = (112, 214, 255)
+        self.intensity = intensity
 
     def run_loop(self):
-        while True:
-            self.tick()
-            time.sleep(0.05)
+        # In PyQt, the app handles the loop, but for compatibility:
+        pass
 
 if __name__ == "__main__":
-    ui = DesktopBrio()
-    ui.run_loop()
+    app = QApplication(sys.argv)
+    brio = DesktopBrio()
+    brio.show()
+    sys.exit(app.exec_())
