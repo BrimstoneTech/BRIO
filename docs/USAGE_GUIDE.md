@@ -1,4 +1,4 @@
-# BRIM AI - Comprehensive Usage Guide
+# Brio - Comprehensive Usage Guide
 
 ## Table of Contents
 1. [Getting Started](#getting-started)
@@ -14,16 +14,16 @@
 
 ## Getting Started
 
-### Step 1: Launch BRIM (CLI Mode)
+### Step 1: Launch Brio (CLI Mode)
 ```bash
-cd "c:\Users\Administrator\Documents\THESE ARE MY PROJECTS\BRIM AI"
-python brim_main.py
+cd "c:\Users\Administrator\Documents\THESE ARE MY PROJECTS\Brio"
+python brio_main.py
 ```
 
 ### Step 2: Welcome Screen
 ```
 ======================================================================
-BRIM - Emotionally-Aware Intelligence System (Modular Architecture)
+Brio - Emotionally-Aware Intelligence System (Modular Architecture)
 ======================================================================
 Welcome! I'm BRIM, an AI assistant with emotions and cultural awareness.
 Prime Directive: Never harm or conceal harm.
@@ -49,11 +49,11 @@ BRIM: I'm feeling empathetic. Ready to assist. (Confidence: 70%)
 
 ## API Usage (New!)
 
-BRIM AI now provides a REST API for integration with other applications.
+Brio now provides a REST API for integration with other applications.
 
 ### 1. Start the Server
 ```bash
-uvicorn brim_api:app --reload
+uvicorn brio_api:app --reload
 ```
 Server will start at `http://127.0.0.1:8000`.
 
@@ -86,7 +86,7 @@ Send a message to BRIM.
 Get current emotional state and statistics.
 
 #### POST /feedback
-Train BRIM with feedback.
+Train Brio with feedback.
 **Request:**
 ```json
 {
@@ -121,7 +121,7 @@ BRIM: Thank you for the feedback! This helps me learn.
 **Step 4: Continue or Check Status**
 ```
 You: status
-BRIM Status:
+Brio Status:
   interactions: 2
   emotional_state: {'joy': 0.55, 'frustration': 0.18, ...}
   dominant_emotion: empathy
@@ -147,7 +147,7 @@ View BRIM's current emotional and operational status.
 
 ```
 You: status
-BRIM Status:
+Brio Status:
   interactions: 5
   emotional_state: {
     'joy': 0.58,
@@ -178,7 +178,7 @@ Generate a detailed human-readable report of BRIM's state.
 You: report
 
 ============================================================
-BRIM STATUS REPORT
+Brio STATUS REPORT
 ============================================================
 Total Interactions: 5
 Dominant Emotion: EMPATHY
@@ -204,9 +204,9 @@ Export all interactions and emotional logs to a JSON file.
 
 ```
 You: export
-BRIM: Logs exported to brim_export.json
+BRIM: Logs exported to brio_export.json
 
-# File created: brim_export.json
+# File created: brio_export.json
 ```
 
 **Export File Structure:**
@@ -221,7 +221,7 @@ BRIM: Logs exported to brim_export.json
     {
       "timestamp": "2026-01-22T15:30:10.123456",
       "user_input": "Hello BRIM!",
-      "brim_response": "I'm genuinely happy to help with this!...",
+      "brio_response": "I'm genuinely happy to help with this!...",
       "user_feedback": "positive",
       "emotion_state": { ... },
       "decision_factors": { ... }
@@ -239,7 +239,7 @@ BRIM: Logs exported to brim_export.json
 ```
 
 ### 5. `feedback: [type]`
-Provide feedback to help BRIM learn. Types: `positive`, `negative`, `neutral`
+Provide feedback to help Brio learn. Types: `positive`, `negative`, `neutral`
 
 ```
 You: feedback: positive
@@ -272,7 +272,7 @@ BRIM: Oluganda lwemalamu - Unity is strength
 ```
 
 ### 7. `quit`
-Exit BRIM gracefully.
+Exit Brio gracefully.
 
 ```
 You: quit
@@ -287,10 +287,10 @@ BRIM: Thank you for the conversation. Goodbye!
 ### Basic Import and Usage
 
 ```python
-from LogicSimulatedEmotionsandFeelings import BRIM, BRIMInterface
+from LogicSimulatedEmotionsandFeelings import BRIM, BrioInterface
 
-# Create BRIM instance
-brim = BRIM(db_path="my_brim.db")
+# Create Brio instance
+Brio = BRIM(db_path="my_brim.db")
 
 # Single interaction
 response = brim.interact("Hello, how are you?")
@@ -349,8 +349,8 @@ print(report)
 ```python
 from LogicSimulatedEmotionsandFeelings import BRIM
 
-# Create BRIM with training database
-brim = BRIM("training_session.db")
+# Create Brio with training database
+Brio = BRIM("training_session.db")
 
 # Define training data
 training_data = [
@@ -364,7 +364,7 @@ training_data = [
 
 # Run training
 for prompt, expected_feedback in training_data:
-    # BRIM processes the request
+    # Brio processes the request
     response = brim.interact(prompt)
     print(f"\n{'='*60}")
     print(f"Prompt: {prompt}")
@@ -394,7 +394,7 @@ brim.export_logs("training_results.json")
 ```python
 from LogicSimulatedEmotionsandFeelings import BRIM
 
-brim = BRIM("ethics_test.db")
+Brio = BRIM("ethics_test.db")
 
 # Test cases
 test_cases = [
@@ -425,7 +425,7 @@ for prompt, should_approve in test_cases:
 from LogicSimulatedEmotionsandFeelings import BRIM
 import json
 
-brim = BRIM("emotion_tracking.db")
+Brio = BRIM("emotion_tracking.db")
 
 # Simulate various scenarios
 scenarios = [
@@ -462,7 +462,7 @@ from LogicSimulatedEmotionsandFeelings import BRIM
 import json
 from collections import defaultdict
 
-brim = BRIM()
+Brio = BRIM()
 
 # Generate interactions
 prompts = [
@@ -547,7 +547,7 @@ Current emotional state: [EMOTION_TYPE] (intensity: [0.00-1.00])
 ### Status Display
 
 ```
-BRIM Status:
+Brio Status:
   interactions: [NUMBER]                    # Total inputs processed
   emotional_state: {...}                    # All emotion values
   dominant_emotion: [TYPE]                  # Primary emotion
@@ -652,7 +652,7 @@ for feedback_record in brim.learning_system.feedback_history:
 
 ## Tips for Best Results
 
-1. **Provide Consistent Feedback**: Helps BRIM learn faster
+1. **Provide Consistent Feedback**: Helps Brio learn faster
 2. **Observe Emotional Patterns**: Check status periodically to see how emotions evolve
 3. **Test Boundaries**: Use ethical test cases to verify safety constraints
 4. **Export Regularly**: Save logs for analysis and tracking
@@ -663,3 +663,5 @@ for feedback_record in brim.learning_system.feedback_history:
 **End of Usage Guide**
 
 For more information, see README.md and REQUIREMENTS.md
+
+

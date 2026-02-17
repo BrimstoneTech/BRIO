@@ -34,3 +34,5 @@ def generate_icon(input_path, output_path):
 
 if __name__ == "__main__":
     generate_icon("assets/orb_base.png", "assets/brio_icon.ico")
+
+

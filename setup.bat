@@ -55,7 +55,7 @@ echo [INFO] Installing Core Libraries...
 echo [INFO] Checking Voice capabilities...
 .venv\Scripts\python -c "import pyaudio" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [WARNING] Voice Hearing (PyAudio) requires C++ Build Tools.
+    echo [WARNING] Voice Hearing ^(PyAudio^) requires C++ Build Tools.
     echo [WARNING] Attempting automatic fix...
     .venv\Scripts\pip install pyaudio
     if !errorlevel! neq 0 (
@@ -69,7 +69,7 @@ echo [INFO] Generating High-Res Sentinel Orb Icon...
 
 :: 6. Create Desktop Shortcut (Robust Method)
 echo [INFO] Generating Desktop Shortcut...
-set "SCRIPT_PATH=%~dp0brim_main.py"
+set "SCRIPT_PATH=%~dp0brio_main.py"
 set "ICON_PATH=%~dp0assets\brio_icon.ico"
 set "EXE_PATH=%~dp0.venv\Scripts\pythonw.exe"
 
@@ -83,15 +83,7 @@ set "SHORTCUT_PATH=%DESKTOP_DIR%\Brio AI.lnk"
 
 echo [INFO] Target: %SHORTCUT_PATH%
 
-powershell -Command ^
-    "$ws = New-Object -ComObject WScript.Shell; ^
-     $s = $ws.CreateShortcut('%SHORTCUT_PATH%'); ^
-     $s.TargetPath = '%EXE_PATH%'; ^
-     $s.Arguments = '\"%SCRIPT_PATH%\"'; ^
-     $s.WorkingDirectory = '%~dp0'; ^
-     $s.WindowStyle = 7; ^
-     if(Test-Path '%ICON_PATH%'){$s.IconLocation = '%ICON_PATH%'}; ^
-     $s.Save()"
+powershell -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%SHORTCUT_PATH%'); $s.TargetPath = '%EXE_PATH%'; $s.Arguments = '\"%SCRIPT_PATH%\"'; $s.WorkingDirectory = '%~dp0'; $s.WindowStyle = 7; if(Test-Path '%ICON_PATH%'){$s.IconLocation = '%ICON_PATH%'}; $s.Save()"
 
 if %errorlevel% neq 0 (
     echo [ERROR] Shortcut creation failed. Check PowerShell permissions.
@@ -103,7 +95,7 @@ echo.
 echo ==========================================
 echo   INSTALLATION SUCCESSFUL!
 echo.
-echo   - Brio v3.1: READY
+echo   - Brio v4.5: READY
 echo   - Sticky Note Visualizer: INTEGRATED
 echo   - Desktop Icon: APPLIED
 echo.
@@ -114,3 +106,5 @@ echo   NOTE: If the icon is blank, right-click
 echo   Desktop and select 'Refresh'.
 echo ==========================================
 pause
+
+

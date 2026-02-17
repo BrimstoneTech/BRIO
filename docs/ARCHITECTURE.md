@@ -1,8 +1,8 @@
-# BRIM AI - Technical Architecture & Design Document
+# Brio - Technical Architecture & Design Document
 
 ## Executive Summary
 
-BRIM (Emotionally-Aware Intelligence System) is a Python-based prototype demonstrating:
+Brio (Emotionally-Aware Intelligence System) is a Python-based prototype demonstrating:
 - **Emotion Simulation**: 6-dimensional emotional state with state transitions
 - **Ethical AI**: Prime directive enforcement with harm detection
 - **Learning Mechanisms**: Feedback loops with adaptive behavior
@@ -19,13 +19,13 @@ BRIM (Emotionally-Aware Intelligence System) is a Python-based prototype demonst
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     BRIMInterface (CLI)                         │
+│                     BrioInterface (CLI)                         │
 │                     - User interaction loop                     │
 │                     - Command routing                           │
 └───────────────────────────────┬─────────────────────────────────┘
                                 │
 ┌───────────────────────────────▼─────────────────────────────────┐
-│                        BRIM (Core)                              │
+│                        Brio (Core)                              │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │ - Interaction orchestration                             │  │
 │  │ - Emotion state management                              │  │
@@ -160,7 +160,7 @@ Emotional Adjustments:
 - `get_learning_adjustment()`: Calculate cumulative impact
 - `get_emotional_adjustment()`: Return emotion deltas
 
-### 4. BRIM (Main Orchestrator)
+### 4. Brio (Main Orchestrator)
 
 **Purpose**: Coordinate all subsystems and manage interactions.
 
@@ -205,7 +205,7 @@ User Input
 - `generate_report()`: Human-readable summary
 - `get_status()`: Current state dict
 
-### 5. BRIMInterface (CLI)
+### 5. BrioInterface (CLI)
 
 **Purpose**: Interactive command-line user interface.
 
@@ -296,7 +296,7 @@ User Input
 ### Feedback Learning Loop
 
 ```
-User Input → BRIM Response
+User Input → Brio Response
     │
     ▼
 ┌─────────────────┐
@@ -393,7 +393,7 @@ CREATE TABLE interactions (
     id          INTEGER PRIMARY KEY,      -- Auto-increment
     timestamp   TEXT,                     -- ISO 8601 format
     user_input  TEXT,                     -- Original user request
-    brim_response TEXT,                   -- BRIM's response
+    brio_response TEXT,                   -- BRIM's response
     user_feedback TEXT,                   -- Feedback: positive/negative/neutral
     emotion_state TEXT,                   -- JSON of EmotionalState
     decision_factors TEXT                 -- JSON of decision metadata
@@ -406,7 +406,7 @@ CREATE TABLE interactions (
   "id": 1,
   "timestamp": "2026-01-22T15:30:10.123456",
   "user_input": "Hello, can you help me?",
-  "brim_response": "I'm genuinely happy to help with this!...",
+  "brio_response": "I'm genuinely happy to help with this!...",
   "user_feedback": "positive",
   "emotion_state": {
     "joy": 0.58,
@@ -680,3 +680,5 @@ elif trigger == EmotionTrigger.NEW_TRIGGER:
 **Document Version**: 1.0  
 **Last Updated**: January 2026  
 **Status**: Complete and Production-Ready
+
+

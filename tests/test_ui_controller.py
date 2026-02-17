@@ -3,11 +3,11 @@ import unittest
 import sys
 import os
 
-# Add parent directory to path to import brim_ui
+# Add parent directory to path to import brio_ui
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from brim_ui import OverlayController, MenuOption
-from brim_emotions import EmotionalState, EmotionType
+from brio_ui import OverlayController, MenuOption
+from brio_emotions import EmotionalState, EmotionType
 
 class TestOverlayController(unittest.TestCase):
     def setUp(self):
@@ -64,3 +64,5 @@ class TestOverlayController(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+

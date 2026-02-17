@@ -3,10 +3,10 @@ import unittest
 import sys
 import os
 
-# Add parent directory to path to import brim_visuals
+# Add parent directory to path to import brio_visuals
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from brim_visuals import VisualStateManager, SystemContext, VisualState
+from brio_visuals import VisualStateManager, SystemContext, VisualState
 
 class TestVisualProtocols(unittest.TestCase):
     def setUp(self):
@@ -94,3 +94,5 @@ class TestVisualProtocols(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+

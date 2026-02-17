@@ -21,3 +21,9 @@ pydub
 PyQt5
 numpy
 matplotlib
+
+# Orchestration & State
+langgraph
+langchain-core
+
+

@@ -3,10 +3,10 @@ import unittest
 import sys
 import os
 
-# Add parent directory to path to import brim_emotions
+# Add parent directory to path to import brio_emotions
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from brim_emotions import FuzzyLogic, get_emotion_description, EmotionType
+from brio_emotions import FuzzyLogic, get_emotion_description, EmotionType
 
 class TestFuzzyLogic(unittest.TestCase):
     def test_triangular_membership(self):
@@ -55,3 +55,5 @@ class TestFuzzyLogic(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+

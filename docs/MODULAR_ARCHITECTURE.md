@@ -1,4 +1,4 @@
-# BRIM Modular Architecture Documentation
+# Brio Modular Architecture Documentation
 
 **Version**: 2.0 (Refactored Architecture)  
 **Date**: January 22, 2026  
@@ -8,7 +8,7 @@
 
 ## 📋 Executive Summary
 
-BRIM has been refactored from a monolithic prototype into a **clean, modular architecture** following the suggested structure. This enables:
+Brio has been refactored from a monolithic prototype into a **clean, modular architecture** following the suggested structure. This enables:
 
 ✅ **Separation of Concerns**: Core logic isolated from experimental features  
 ✅ **Maintainability**: Each module has single responsibility  
@@ -22,7 +22,7 @@ BRIM has been refactored from a monolithic prototype into a **clean, modular arc
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   brim_main.py                          │
+│                   brio_main.py                          │
 │          (Interactive CLI Entry Point)                  │
 └────────────────────┬────────────────────────────────────┘
                      │
@@ -30,7 +30,7 @@ BRIM has been refactored from a monolithic prototype into a **clean, modular arc
         │            │            │
         ▼            ▼            ▼
     ┌─────────┐ ┌─────────┐ ┌──────────┐
-    │ brim_   │ │ brim_   │ │ brim_    │
+    │ brio_   │ │ brio_   │ │ brio_    │
     │ core.py │ │storage. │ │emotions. │
     │         │ │ py      │ │ py       │
     │ BRAIN   │ │ STORAGE │ │ EMOTIONS │
@@ -42,24 +42,24 @@ BRIM has been refactored from a monolithic prototype into a **clean, modular arc
         (IMMUTABLE)  │  (PLUGGABLE)
                      │
         Future Modules (Coming Soon)
-        - brim_android.py
-        - brim_web.py
-        - brim_voice.py
-        - brim_cloud.py
+        - brio_android.py
+        - brio_web.py
+        - brio_voice.py
+        - brio_cloud.py
 ```
 
 ---
 
 ## 📂 Module Structure
 
-### 1. **brim_core.py** - THE BRAIN (Immutable Foundation)
+### 1. **brio_core.py** - THE BRAIN (Immutable Foundation)
 
 **Purpose**: Central intelligence with fixed algorithms and ethics
 
 **Contains**:
 - `DecisionEngine`: Harm detection, ethical validation, confidence calculation
 - `LearningSystem`: Feedback tracking, adaptation
-- `BRIMCore`: Main orchestrator
+- `BrioCore`: Main orchestrator
 
 **Characteristics**:
 - ✅ Non-changeable core algorithms
@@ -69,7 +69,7 @@ BRIM has been refactored from a monolithic prototype into a **clean, modular arc
 
 **Key Methods**:
 ```python
-brim = BRIMCore(storage_manager)
+Brio = BrioCore(storage_manager)
 response = brim.process_input(user_input)
 brim.provide_feedback(index, feedback)
 status = brim.get_status()
@@ -77,12 +77,12 @@ report = brim.generate_report()
 ```
 
 **File Size**: ~400 lines  
-**Dependencies**: brim_emotions, brim_storage  
+**Dependencies**: brio_emotions, brio_storage  
 **Status**: Stable, tested, production-ready
 
 ---
 
-### 2. **brim_emotions.py** - Emotion Engine (Non-Negotiable)
+### 2. **brio_emotions.py** - Emotion Engine (Non-Negotiable)
 
 **Purpose**: 6-dimensional emotion simulation with immutable rules
 
@@ -96,7 +96,7 @@ report = brim.generate_report()
 - ✅ Immutable emotion rules
 - ✅ Natural decay mechanics
 - ✅ Probabilistic transitions
-- ✅ Reusable across all BRIM implementations
+- ✅ Reusable across all Brio implementations
 
 **Key Methods**:
 ```python
@@ -113,7 +113,7 @@ intensity = engine.get_intensity()
 
 ---
 
-### 3. **brim_storage.py** - Persistence Layer (Pluggable)
+### 3. **brio_storage.py** - Persistence Layer (Pluggable)
 
 **Purpose**: Data persistence with flexible backend
 
@@ -142,26 +142,26 @@ storage.export_to_json("export.json")
 
 ---
 
-### 4. **brim_main.py** - Entry Point (CLI Interface)
+### 4. **brio_main.py** - Entry Point (CLI Interface)
 
 **Purpose**: Interactive command-line interface
 
 **Contains**:
-- `BRIMInterface`: CLI orchestration
+- `BrioInterface`: CLI orchestration
 - `main()`: Entry point
 
 **Usage**:
 ```bash
-python brim_main.py
+python brio_main.py
 ```
 
 **File Size**: ~100 lines  
-**Dependencies**: brim_core, brim_storage  
+**Dependencies**: brio_core, brio_storage  
 **Status**: Functional, can be replaced with web/mobile UI
 
 ---
 
-### 5. **brim_prototype.ipynb** - Testing Ground (Experimental)
+### 5. **brio_prototype.ipynb** - Testing Ground (Experimental)
 
 **Purpose**: Interactive experimentation before merging to core
 
@@ -184,12 +184,12 @@ python brim_main.py
 ```
 1. Write experimental code
 2. Run and validate
-3. If stable: merge to brim_core.py
+3. If stable: merge to brio_core.py
 4. If experimental: keep isolated in notebook
 ```
 
 **File Size**: Growing (experiment tracking)  
-**Dependencies**: brim_core, brim_emotions, brim_storage  
+**Dependencies**: brio_core, brio_emotions, brio_storage  
 **Status**: Development tool, not production
 
 ---
@@ -199,15 +199,15 @@ python brim_main.py
 ### User Input → Response Pipeline
 
 ```
-User Input (brim_main.py)
+User Input (brio_main.py)
     │
     ▼
-[BRIMCore.process_input()]
-    ├─► Emotion decay (brim_emotions.py)
+[BrioCore.process_input()]
+    ├─► Emotion decay (brio_emotions.py)
     ├─► Trigger detection → Emotion update
     ├─► Decision engine check (prime directive)
     ├─► Response generation
-    └─► Logging (brim_storage.py)
+    └─► Logging (brio_storage.py)
     │
     ▼
 Response to User
@@ -219,7 +219,7 @@ Response to User
 User Feedback
     │
     ▼
-[BRIMCore.provide_feedback()]
+[BrioCore.provide_feedback()]
     ├─► Learning system records
     ├─► Emotion adjustment
     └─► Storage logging
@@ -230,7 +230,7 @@ Improved Future Responses
 
 ---
 
-## 🔒 Prime Directive (Immutable in brim_core.py)
+## 🔒 Prime Directive (Immutable in brio_core.py)
 
 ```python
 PRIME_DIRECTIVE = "Never harm or conceal harm"
@@ -270,26 +270,26 @@ LogicSimulatedEmotionsandFeelings.py (656 lines)
 ### After (Modular)
 
 ```
-brim_core.py (400 lines)
+brio_core.py (400 lines)
 ├─ Decision logic (IMMUTABLE)
 ├─ Learning
 └─ Orchestration
 
-brim_emotions.py (350 lines)
+brio_emotions.py (350 lines)
 ├─ Emotion state (IMMUTABLE)
 ├─ Triggers (NON-NEGOTIABLE)
 └─ Public interface
 
-brim_storage.py (350 lines)
+brio_storage.py (350 lines)
 ├─ Database ops (PLUGGABLE)
 ├─ Serialization
 └─ Can be replaced
 
-brim_main.py (100 lines)
+brio_main.py (100 lines)
 ├─ CLI interface
 └─ Can be replaced with web/mobile
 
-brim_prototype.ipynb (interactive)
+brio_prototype.ipynb (interactive)
 ├─ Experimentation
 ├─ Testing
 └─ Safe sandbox
@@ -309,12 +309,12 @@ brim_prototype.ipynb (interactive)
 ### Adding Android Integration
 
 ```python
-# Future: brim_android.py
-from brim_core import BRIMCore
+# Future: brio_android.py
+from brio_core import BrioCore
 
-class BRIMAndroid:
+class BrioAndroid:
     def __init__(self):
-        self.brim = BRIMCore()
+        self.Brio = BrioCore()
     
     def process_voice_input(self, audio_bytes):
         # Process voice → text
@@ -325,12 +325,12 @@ class BRIMAndroid:
 ### Adding Web Interface
 
 ```python
-# Future: brim_web.py
+# Future: brio_web.py
 from flask import Flask
-from brim_core import BRIMCore
+from brio_core import BrioCore
 
 app = Flask(__name__)
-brim = BRIMCore()
+Brio = BrioCore()
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -342,8 +342,8 @@ def chat():
 ### Adding Cloud Sync
 
 ```python
-# Future: brim_cloud.py
-from brim_storage import StorageManager
+# Future: brio_cloud.py
+from brio_storage import StorageManager
 
 class CloudStorageManager(StorageManager):
     def save_interaction(self, record):
@@ -359,11 +359,11 @@ class CloudStorageManager(StorageManager):
 
 | File | Size | Purpose | Status |
 |------|------|---------|--------|
-| brim_core.py | 400 L | Central brain | ✅ Prod |
-| brim_emotions.py | 350 L | Emotion engine | ✅ Prod |
-| brim_storage.py | 350 L | Data persistence | ✅ Prod |
-| brim_main.py | 100 L | CLI entry | ✅ Prod |
-| brim_prototype.ipynb | Growing | Experimentation | 🔧 Dev |
+| brio_core.py | 400 L | Central brain | ✅ Prod |
+| brio_emotions.py | 350 L | Emotion engine | ✅ Prod |
+| brio_storage.py | 350 L | Data persistence | ✅ Prod |
+| brio_main.py | 100 L | CLI entry | ✅ Prod |
+| brio_prototype.ipynb | Growing | Experimentation | 🔧 Dev |
 | LogicSimulatedEmotionsandFeelings.py | 656 L | Legacy monolith | 📚 Reference |
 
 **Total Production Code**: ~1,200 lines (vs 656 monolithic)  
@@ -378,7 +378,7 @@ class CloudStorageManager(StorageManager):
 
 ```
 1. EXPERIMENT
-   └─ Write code in brim_prototype.ipynb
+   └─ Write code in brio_prototype.ipynb
    └─ Test thoroughly
    └─ Verify doesn't break anything
 
@@ -388,9 +388,9 @@ class CloudStorageManager(StorageManager):
    └─ Verify prime directive still enforced
 
 3. DECIDE
-   └─ If core logic: merge to brim_core.py
-   └─ If emotion rule: merge to brim_emotions.py
-   └─ If storage: update brim_storage.py
+   └─ If core logic: merge to brio_core.py
+   └─ If emotion rule: merge to brio_emotions.py
+   └─ If storage: update brio_storage.py
    └─ If experimental: keep in notebook
 
 4. INTEGRATE
@@ -402,7 +402,7 @@ class CloudStorageManager(StorageManager):
 ### Example: Adding New Emotion Trigger
 
 ```
-1. In brim_prototype.ipynb:
+1. In brio_prototype.ipynb:
    └─ Add EmotionTrigger.NEW_TRIGGER enum
    └─ Implement trigger logic
    └─ Test thoroughly
@@ -412,15 +412,15 @@ class CloudStorageManager(StorageManager):
    └─ Prime directive still enforced
    └─ No regression in other features
 
-3. Merge to brim_emotions.py:
+3. Merge to brio_emotions.py:
    └─ Update EmotionTrigger enum
    └─ Update update_from_trigger() method
    └─ Add tests
 
-4. Update brim_core.py:
+4. Update brio_core.py:
    └─ Add detection for new trigger
    └─ Update _detect_emotional_triggers()
-   └─ Test in brim_main.py
+   └─ Test in brio_main.py
 ```
 
 ---
@@ -428,9 +428,9 @@ class CloudStorageManager(StorageManager):
 ## ✅ Testing Strategy
 
 ### Unit Tests (Per Module)
-- **brim_emotions.py**: Test emotion bounds, decay, transitions
-- **brim_core.py**: Test decisions, prime directive, confidence
-- **brim_storage.py**: Test persistence, serialization
+- **brio_emotions.py**: Test emotion bounds, decay, transitions
+- **brio_core.py**: Test decisions, prime directive, confidence
+- **brio_storage.py**: Test persistence, serialization
 
 ### Integration Tests (Module Interaction)
 - Full pipeline: input → emotion → decision → response → storage
@@ -443,7 +443,7 @@ class CloudStorageManager(StorageManager):
 - Storage always persists correctly
 - Learning always improves (or stays neutral)
 
-### Experimentation (brim_prototype.ipynb)
+### Experimentation (brio_prototype.ipynb)
 - Try new features safely
 - Test complex scenarios
 - Validate before production
@@ -458,25 +458,25 @@ class CloudStorageManager(StorageManager):
 - ✅ Prototype notebook for experimentation
 
 ### Phase 2: Production
-- ✅ Switch to modular brim_main.py as primary
+- ✅ Switch to modular brio_main.py as primary
 - 📚 Keep legacy as documentation
 - 🔧 Use prototype for future development
 
 ### Phase 3: Extensions
-- 🚀 Add brim_android.py
-- 🌐 Add brim_web.py
+- 🚀 Add brio_android.py
+- 🌐 Add brio_web.py
 - ☁️ Add cloud backend
-- 🎤 Add brim_voice.py
+- 🎤 Add brio_voice.py
 
 ---
 
 ## 💡 Key Principles
 
 ### 1. **Immutability of Core**
-Once brim_core.py and brim_emotions.py are validated, they should not change unless absolutely necessary. This protects the prime directive.
+Once brio_core.py and brio_emotions.py are validated, they should not change unless absolutely necessary. This protects the prime directive.
 
 ### 2. **Pluggability of Storage**
-brim_storage.py can be swapped for cloud, NoSQL, or any other backend without affecting core logic.
+brio_storage.py can be swapped for cloud, NoSQL, or any other backend without affecting core logic.
 
 ### 3. **Separation of Concerns**
 - Core logic: immutable
@@ -485,10 +485,10 @@ brim_storage.py can be swapped for cloud, NoSQL, or any other backend without af
 - UI: replaceable
 
 ### 4. **Safe Experimentation**
-All new features start in brim_prototype.ipynb, get tested thoroughly, then merge to appropriate module.
+All new features start in brio_prototype.ipynb, get tested thoroughly, then merge to appropriate module.
 
 ### 5. **Prime Directive Above All**
-Every module respects the immutable prime directive in brim_core.py. No module can bypass or override it.
+Every module respects the immutable prime directive in brio_core.py. No module can bypass or override it.
 
 ---
 
@@ -496,10 +496,10 @@ Every module respects the immutable prime directive in brim_core.py. No module c
 
 | What | Where |
 |------|-------|
-| How to use BRIM | brim_main.py + QUICKSTART.md |
-| How emotions work | brim_emotions.py (well-commented) |
-| How decisions made | brim_core.py (well-commented) |
-| How to extend | This file + brim_prototype.ipynb |
+| How to use Brio | brio_main.py + QUICKSTART.md |
+| How emotions work | brio_emotions.py (well-commented) |
+| How decisions made | brio_core.py (well-commented) |
+| How to extend | This file + brio_prototype.ipynb |
 | Architecture details | ARCHITECTURE.md |
 | API reference | Docstrings in each module |
 
@@ -509,22 +509,22 @@ Every module respects the immutable prime directive in brim_core.py. No module c
 
 ### Run Production
 ```bash
-python brim_main.py
+python brio_main.py
 ```
 
 ### Develop/Test
 ```
-Open: brim_prototype.ipynb
+Open: brio_prototype.ipynb
 Run: jupyter notebook
 ```
 
 ### Import in Your Code
 ```python
-from brim_core import BRIMCore
-from brim_storage import StorageManager
+from brio_core import BrioCore
+from brio_storage import StorageManager
 
 storage = StorageManager()
-brim = BRIMCore(storage)
+Brio = BrioCore(storage)
 response = brim.process_input("Hello!")
 ```
 
@@ -533,3 +533,5 @@ response = brim.process_input("Hello!")
 **Status**: ✅ Production-Ready Modular Architecture
 
 This structure supports BRIM's vision of scalable, ethical AI while protecting the immutable prime directive and enabling safe experimentation.
+
+

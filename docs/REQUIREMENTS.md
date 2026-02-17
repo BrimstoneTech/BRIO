@@ -1,4 +1,4 @@
-# BRIM AI - Requirements and Setup Guide
+# Brio - Requirements and Setup Guide
 
 ## Minimum Requirements
 
@@ -17,8 +17,8 @@ No external packages required (uses only Python standard library)
 
 ### 1. Clone/Download
 ```bash
-# Navigate to BRIM AI directory
-cd "c:\Users\Administrator\Documents\THESE ARE MY PROJECTS\BRIM AI"
+# Navigate to Brio directory
+cd "c:\Users\Administrator\Documents\THESE ARE MY PROJECTS\Brio"
 ```
 
 ### 2. Verify Python Installation
@@ -34,7 +34,7 @@ python LogicSimulatedEmotionsandFeelings.py
 
 ## Optional Dependencies for Enhanced Features
 
-If you want to extend BRIM with machine learning or visualization:
+If you want to extend Brio with machine learning or visualization:
 
 ```bash
 # For machine learning (decision trees, neural networks)
@@ -82,13 +82,13 @@ python LogicSimulatedEmotionsandFeelings.py
 ## Project Structure
 
 ```
-BRIM AI/
+Brio/
 ├── LogicSimulatedEmotionsandFeelings.py  (Main prototype - 500+ lines)
 ├── README.md                             (Feature documentation)
 ├── REQUIREMENTS.md                       (This file)
 ├── USAGE_GUIDE.md                        (Detailed usage examples)
-├── brim_interactions.db                  (Generated - SQLite database)
-└── brim_export.json                      (Generated - Export logs)
+├── brio_interactions.db                  (Generated - SQLite database)
+└── brio_export.json                      (Generated - Export logs)
 ```
 
 ## Usage Quick Start
@@ -100,10 +100,10 @@ python LogicSimulatedEmotionsandFeelings.py
 
 ### Programmatic Usage
 ```python
-from LogicSimulatedEmotionsandFeelings import BRIM, BRIMInterface
+from LogicSimulatedEmotionsandFeelings import BRIM, BrioInterface
 
 # Direct usage
-brim = BRIM()
+Brio = BRIM()
 response = brim.interact("Hello, can you help me?")
 print(response)
 
@@ -149,7 +149,7 @@ print(brim.generate_report())
    - Quality scoring
    - Emotional adjustment
 
-5. **Core BRIM Class** (150 lines)
+5. **Core Brio Class** (150 lines)
    - Main orchestration
    - Database integration
    - Interaction management
@@ -162,14 +162,14 @@ print(brim.generate_report())
 
 ## Database Files
 
-### brim_interactions.db
+### brio_interactions.db
 **Created on**: First run
 **Size**: Grows with interactions
 **Tables**:
 - `interactions`: User inputs, responses, feedback, emotions
 - `emotional_timeline`: Emotional state snapshots
 
-### brim_export.json
+### brio_export.json
 **Created on**: `export` command
 **Format**: Human-readable JSON
 **Contents**:
@@ -203,11 +203,11 @@ print(brim.generate_report())
 
 ```bash
 # Set custom database path
-set BRIM_DB_PATH=C:\custom\path\brim.db
+set brio_DB_PATH=C:\custom\path\brim.db
 python LogicSimulatedEmotionsandFeelings.py
 
 # Set log export directory
-set BRIM_LOG_DIR=C:\logs
+set brio_LOG_DIR=C:\logs
 python LogicSimulatedEmotionsandFeelings.py
 ```
 
@@ -236,10 +236,10 @@ BRIM: [Shows command menu]
 ### View Logs
 ```bash
 # On Windows
-type brim_export.json | more
+type brio_export.json | more
 
 # On macOS/Linux
-cat brim_export.json | less
+cat brio_export.json | less
 ```
 
 ### Debug Mode
@@ -255,7 +255,7 @@ logging.basicConfig(level=logging.DEBUG)
 ```python
 from LogicSimulatedEmotionsandFeelings import BRIM
 
-brim = BRIM('batch_test.db')
+Brio = BRIM('batch_test.db')
 
 prompts = [
     "Hello, how are you?",
@@ -279,7 +279,7 @@ print(brim.generate_report())
 from LogicSimulatedEmotionsandFeelings import BRIM
 import json
 
-brim = BRIM()
+Brio = BRIM()
 brim.export_logs('analysis.json')
 
 with open('analysis.json') as f:
@@ -290,11 +290,11 @@ for entry in data['mood_history']:
     print(f"{entry['timestamp']}: {entry['intensity']:.2%}")
 ```
 
-### Training BRIM with Feedback
+### Training Brio with Feedback
 ```python
 from LogicSimulatedEmotionsandFeelings import BRIM
 
-brim = BRIM()
+Brio = BRIM()
 
 # Simulate training session
 interactions = [
@@ -330,7 +330,7 @@ print(brim.generate_report())
 For enhancements or issues:
 1. Review the README.md for feature documentation
 2. Check the code comments (well-documented)
-3. Extend BRIM by modifying emotion triggers and cultural elements
+3. Extend Brio by modifying emotion triggers and cultural elements
 4. Export logs for analysis and validation
 
 ---
@@ -338,3 +338,5 @@ For enhancements or issues:
 **Version**: 1.0  
 **Last Updated**: January 2026  
 **Status**: Production-Ready for Prototyping
+
+

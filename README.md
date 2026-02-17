@@ -1,11 +1,11 @@
-# BRIM AI (Brio Core)
+# Brio (Brio Core)
 
 The central brain and logic unit for Brio, a sentient AI Desktop Companion.
 
 ## Components
-- **Core Logic**: `brim_main.py` handles the main loop, state management, and command processing.
-- **Intelligence**: `brim_kimi.py` integrates with Kimi-CLI for LLM-powered responses.
-- **UI**: `brim_desktop_ui.py` manages the Tkinter-based desktop interface (Thought Bubble).
+- **Core Logic**: `brio_main.py` handles the main loop, state management, and command processing.
+- **Intelligence**: Local RAG system powered by Ollama and custom vector storage.
+- **UI**: `brio_desktop_ui.py` manages the Tkinter-based desktop interface (Thought Bubble).
 - **Monitoring**: Checks system health and keeps Brio alive in the background.
 
 ## Key Features
@@ -18,4 +18,6 @@ The central brain and logic unit for Brio, a sentient AI Desktop Companion.
 2.  `pip install -r requirements.txt`
 
 ## Usage
-`python brim_main.py`
+`python brio_main.py`
+
+

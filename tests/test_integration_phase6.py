@@ -6,9 +6,9 @@ import os
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from brim_security import GhostProtocol
-from brim_voice import VoiceEngine
-from brim_main import BrimSystem
+from brio_security import GhostProtocol
+from brio_voice import VoiceEngine
+from brio_main import BrioSystem
 
 class TestIntegrationPhase6(unittest.TestCase):
     def test_ghost_protocol(self):
@@ -35,7 +35,7 @@ class TestIntegrationPhase6(unittest.TestCase):
         self.assertIn("STT", status)
 
     def test_main_loop_with_sensors(self):
-        system = BrimSystem()
+        system = BrioSystem()
         state = system.tick()
         
         # Verify sensors key exists
@@ -47,7 +47,7 @@ class TestIntegrationPhase6(unittest.TestCase):
         self.assertIsNotNone(system.web)
         
     def test_voice_command_pass_through(self):
-        system = BrimSystem()
+        system = BrioSystem()
         # "say" command should trigger voice.speak
         # We can't easily verify audio output, but we can verify no crash
         resp = system.handle_command("say Hello Test")
@@ -55,3 +55,5 @@ class TestIntegrationPhase6(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+

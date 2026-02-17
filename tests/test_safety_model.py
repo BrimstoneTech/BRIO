@@ -3,10 +3,10 @@ import unittest
 import sys
 import os
 
-# Add parent directory to path to import brim_security
+# Add parent directory to path to import brio_security
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from brim_security import SafetyProbabilityModel, SafetyInputs, SafetyModelConfig
+from brio_security import SafetyProbabilityModel, SafetyInputs, SafetyModelConfig
 
 class TestSafetyModel(unittest.TestCase):
     def setUp(self):
@@ -64,3 +64,5 @@ class TestSafetyModel(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+

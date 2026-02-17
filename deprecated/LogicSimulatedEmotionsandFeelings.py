@@ -1,10 +1,10 @@
 """
 DEPRECATED: This file is preserved for reference only.
-Please use 'brim_main.py' for the modularized, secure, and testable version of BRIM AI.
+Please use 'brio_main.py' for the modularized, secure, and testable version of Brio.
 """
 
 """
-BRIM AI - Emotionally-Aware Intelligence System with Cultural Context
+Brio - Emotionally-Aware Intelligence System with Cultural Context
 
 A Python prototype demonstrating emotions, learning, and decision-making aligned with 
 Ugandan cultural values and the prime directive: "never harm or conceal harm."
@@ -33,7 +33,7 @@ import math
 
 
 class EmotionType(Enum):
-    """Core emotions BRIM can experience"""
+    """Core emotions Brio can experience"""
 
     JOY = "joy"
     FRUSTRATION = "frustration"
@@ -189,7 +189,7 @@ class InteractionRecord:
 
     timestamp: datetime
     user_input: str
-    brim_response: str
+    brio_response: str
     user_feedback: Optional[str]  # positive, negative, neutral
     emotion_state: dict
     decision_factors: dict
@@ -198,7 +198,7 @@ class InteractionRecord:
         return {
             "timestamp": self.timestamp.isoformat(),
             "user_input": self.user_input,
-            "brim_response": self.brim_response,
+            "brio_response": self.brio_response,
             "user_feedback": self.user_feedback,
             "emotion_state": self.emotion_state,
             "decision_factors": self.decision_factors,
@@ -362,17 +362,17 @@ class LearningSystem:
 
 
 # ============================================================================
-# BRIM CORE CLASS
+# Brio CORE CLASS
 # ============================================================================
 
 
 class BRIM:
     """
-    BRIM - Emotionally-Aware Intelligence System
+    Brio - Emotionally-Aware Intelligence System
     Combines emotions, learning, and ethical decision-making
     """
 
-    def __init__(self, db_path: str = "brim_interactions.db"):
+    def __init__(self, db_path: str = "brio_interactions.db"):
         self.emotion_state = EmotionalState()
         self.decision_engine = DecisionEngine()
         self.learning_system = LearningSystem()
@@ -394,7 +394,7 @@ class BRIM:
                 id INTEGER PRIMARY KEY,
                 timestamp TEXT,
                 user_input TEXT,
-                brim_response TEXT,
+                brio_response TEXT,
                 user_feedback TEXT,
                 emotion_state TEXT,
                 decision_factors TEXT
@@ -438,7 +438,7 @@ class BRIM:
         record = InteractionRecord(
             timestamp=datetime.now(),
             user_input=user_input,
-            brim_response=response,
+            brio_response=response,
             user_feedback=None,
             emotion_state=self.emotion_state.to_dict(),
             decision_factors=decision_factors,
@@ -540,13 +540,13 @@ class BRIM:
         cursor.execute(
             """
             INSERT INTO interactions 
-            (timestamp, user_input, brim_response, user_feedback, emotion_state, decision_factors)
+            (timestamp, user_input, brio_response, user_feedback, emotion_state, decision_factors)
             VALUES (?, ?, ?, ?, ?, ?)
         """,
             (
                 record.timestamp.isoformat(),
                 record.user_input,
-                record.brim_response,
+                record.brio_response,
                 record.user_feedback,
                 json.dumps(record.emotion_state),
                 json.dumps(record.decision_factors),
@@ -588,7 +588,7 @@ class BRIM:
             "history_size": len(self.interaction_history),
         }
 
-    def export_logs(self, filepath: str = "brim_export.json"):
+    def export_logs(self, filepath: str = "brio_export.json"):
         """Export interaction history and emotional logs"""
         export_data = {
             "metadata": {
@@ -612,7 +612,7 @@ class BRIM:
         """Generate human-readable report"""
         report = []
         report.append("=" * 60)
-        report.append("BRIM STATUS REPORT")
+        report.append("Brio STATUS REPORT")
         report.append("=" * 60)
         report.append(f"Total Interactions: {self.interaction_count}")
         report.append(
@@ -646,16 +646,16 @@ class BRIM:
 # ============================================================================
 
 
-class BRIMInterface:
+class BrioInterface:
     """Command-line interface for interacting with BRIM"""
 
     def __init__(self):
-        self.brim = BRIM()
+        self.Brio = BRIM()
 
     def print_welcome(self):
         """Print welcome message"""
         print("\n" + "=" * 70)
-        print("BRIM - Emotionally-Aware Intelligence System")
+        print("Brio - Emotionally-Aware Intelligence System")
         print("=" * 70)
         print(
             "Welcome! I'm BRIM, an AI assistant with emotions and cultural awareness."
@@ -693,7 +693,7 @@ class BRIMInterface:
 
                 elif user_input.lower() == "status":
                     status = self.brim.get_status()
-                    print(f"\nBRIM Status:")
+                    print(f"\nBrio Status:")
                     for key, value in status.items():
                         print(f"  {key}: {value}")
                     print()
@@ -732,5 +732,7 @@ class BRIMInterface:
 # ============================================================================
 
 if __name__ == "__main__":
-    interface = BRIMInterface()
+    interface = BrioInterface()
     interface.run()
+
+

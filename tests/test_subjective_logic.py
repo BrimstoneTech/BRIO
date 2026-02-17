@@ -3,10 +3,10 @@ import unittest
 import sys
 import os
 
-# Add parent directory to path to import brim_logic
+# Add parent directory to path to import brio_logic
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from brim_logic import SubjectiveOpinion
+from brio_logic import SubjectiveOpinion
 
 class TestSubjectiveLogic(unittest.TestCase):
     def test_normalization(self):
@@ -62,3 +62,5 @@ class TestSubjectiveLogic(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+

@@ -1,7 +1,7 @@
 """
 check_vitality.py
 
-Automated Health Check for Brio v2.0
+Automated Health Check for Brio v3.3
 Verifies Python version, Dependencies, and Visual Assets.
 """
 
@@ -9,9 +9,9 @@ import sys
 import os
 import importlib
 
-def check_vital":
+def check_vital():
     print("==========================================")
-    print("       BRIO V2.0 VITALITY CHECK           ")
+    print("       BRIO V3.3 VITALITY CHECK           ")
     print("==========================================")
     
     score = 0
@@ -79,3 +79,5 @@ def check_vital":
 
 if __name__ == "__main__":
     check_vital()
+
+

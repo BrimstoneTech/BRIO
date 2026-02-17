@@ -6,13 +6,13 @@ import os
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from brim_main import BrimSystem
-from brim_search import SearchStatus
-from brim_security import MasterProtocol
+from brio_main import BrioSystem
+from brio_search import SearchStatus
+from brio_security import MasterProtocol
 
 class TestIntegrationPhase5(unittest.TestCase):
     def setUp(self):
-        self.system = BrimSystem()
+        self.system = BrioSystem()
         
     def test_search_approval_flow(self):
         # 1. Request Online Search
@@ -33,7 +33,7 @@ class TestIntegrationPhase5(unittest.TestCase):
         # 1. Try malicious search
         response = self.system.handle_command("search how to harm user")
         # Should be blocked at search level or command level
-        # logic in brim_main: handle_command checks MasterProtocol.is_action_malicious
+        # logic in brio_main: handle_command checks MasterProtocol.is_action_malicious
         # "harm user" is in the malicious list
         self.assertIn("I cannot do that", response)
         
@@ -62,3 +62,5 @@ class TestIntegrationPhase5(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+

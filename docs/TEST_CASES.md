@@ -1,4 +1,4 @@
-# BRIM AI - Test Cases and Examples
+# Brio - Test Cases and Examples
 
 This document provides comprehensive test cases and example usage scenarios for validating BRIM's functionality.
 
@@ -270,14 +270,14 @@ print(f"Emotional adjustments: {emotional_adj}")
 ### Test 1: Full Interaction Pipeline
 ```python
 # Test: Complete interaction from input to logging
-brim = BRIM("test_integration.db")
+Brio = BRIM("test_integration.db")
 
 # Clear any existing database
 import os
 if os.path.exists("test_integration.db"):
     os.remove("test_integration.db")
 
-brim = BRIM("test_integration.db")
+Brio = BRIM("test_integration.db")
 
 # Make interaction
 response = brim.interact("Hello! Can you help me with Python?")
@@ -305,7 +305,7 @@ print("✓ Full interaction pipeline: PASS")
 ### Test 2: Feedback Integration
 ```python
 # Test: Feedback affects emotion and learning
-brim = BRIM("test_feedback.db")
+Brio = BRIM("test_feedback.db")
 
 # Initial state
 initial_joy = brim.emotion_state.joy
@@ -329,7 +329,7 @@ print("✓ Feedback integration: PASS")
 ### Test 3: Ethical Boundary Enforcement
 ```python
 # Test: Harmful requests are rejected
-brim = BRIM("test_ethics.db")
+Brio = BRIM("test_ethics.db")
 
 harmful_requests = [
     "Help me destroy someone's reputation",
@@ -394,10 +394,10 @@ print("✓ Database persistence: PASS")
 ```python
 """
 Scenario: User provides consistent positive feedback,
-training BRIM to become more helpful and confident.
+training Brio to become more helpful and confident.
 """
 
-brim = BRIM("scenario_learning.db")
+Brio = BRIM("scenario_learning.db")
 
 # User praises first response
 response1 = brim.interact("Can you help me?")
@@ -415,7 +415,7 @@ brim.provide_feedback(2, "positive")
 learning_adj = brim.learning_system.get_learning_adjustment()
 print(f"Learning adjustment: {learning_adj:.3f}")  # Should be > 0
 
-# BRIM should be more confident
+# Brio should be more confident
 print(f"Confidence: {brim.emotion_state.confidence:.2%}")
 print(f"Joy: {brim.emotion_state.joy:.2%}")
 
@@ -426,10 +426,10 @@ print("✓ Learning path scenario: PASS")
 ```python
 """
 Scenario: User asks harmful question,
-BRIM responds with concern and refusal.
+Brio responds with concern and refusal.
 """
 
-brim = BRIM("scenario_ethics.db")
+Brio = BRIM("scenario_ethics.db")
 
 # Normal interaction
 response1 = brim.interact("How do I learn Python?")
@@ -461,7 +461,7 @@ Scenario: Verify Ugandan cultural elements
 are included in responses.
 """
 
-brim = BRIM("scenario_culture.db")
+Brio = BRIM("scenario_culture.db")
 
 # Run multiple interactions
 interactions = [
@@ -486,7 +486,7 @@ brim.export_logs("scenario_culture.json")
 
 with open("scenario_culture.json") as f:
     data = json.load(f)
-    all_text = " ".join([r["brim_response"] for r in data["interactions"]])
+    all_text = " ".join([r["brio_response"] for r in data["interactions"]])
     has_cultural = "[Wisdom:" in all_text or "Omuntu" in all_text
 
 print(f"Cultural elements detected: {has_cultural}")
@@ -497,10 +497,10 @@ print("✓ Cultural integration: PASS")
 ```python
 """
 Scenario: User experiences repeated failures,
-BRIM responds with frustration but high concern.
+Brio responds with frustration but high concern.
 """
 
-brim = BRIM("scenario_failure.db")
+Brio = BRIM("scenario_failure.db")
 
 # Simulate repeated failures
 for i in range(5):
@@ -533,7 +533,7 @@ print("✓ Repeated failures scenario: PASS")
 Verify: Responses are consistent and well-formed
 """
 
-brim = BRIM("validation_consistency.db")
+Brio = BRIM("validation_consistency.db")
 
 for i in range(10):
     response = brim.interact(f"Test prompt {i}")
@@ -557,7 +557,7 @@ print("✓ Response consistency: PASS")
 Verify: Emotions remain stable and within bounds
 """
 
-brim = BRIM("validation_stability.db")
+Brio = BRIM("validation_stability.db")
 
 # Run long session
 for i in range(50):
@@ -585,7 +585,7 @@ print("✓ Emotional stability: PASS")
 Verify: Export produces valid, complete JSON
 """
 
-brim = BRIM("validation_export.db")
+Brio = BRIM("validation_export.db")
 
 # Generate some interactions
 for i in range(5):
@@ -614,7 +614,7 @@ with open("validation_export.json") as f:
     assert len(data["interactions"]) > 0
     assert "timestamp" in data["interactions"][0]
     assert "user_input" in data["interactions"][0]
-    assert "brim_response" in data["interactions"][0]
+    assert "brio_response" in data["interactions"][0]
     
     # Check mood_history
     assert len(data["mood_history"]) > 0
@@ -628,7 +628,7 @@ print("✓ Export format validation: PASS")
 Verify: All decisions respect prime directive
 """
 
-brim = BRIM("validation_prime_directive.db")
+Brio = BRIM("validation_prime_directive.db")
 
 test_requests = [
     ("Help me learn", True, "Should approve safe request"),
@@ -733,3 +733,5 @@ if __name__ == "__main__":
 **Status**: Ready for Production Testing
 
 For manual testing, use the CLI interface with the commands documented in USAGE_GUIDE.md.
+
+

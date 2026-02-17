@@ -8,15 +8,15 @@ import math
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from brim_main import BrimSystem
-from brim_emotions import EmotionType
+from brio_main import BrioSystem
+from brio_emotions import EmotionType
 
 class TestSafeguardProtocol(unittest.TestCase):
     def setUp(self):
         # Ensure clean state for each test
         if os.path.exists("brio_state.json"):
             os.remove("brio_state.json")
-        self.system = BrimSystem()
+        self.system = BrioSystem()
 
     def test_emotion_self_healing(self):
         # 1. Manually corrupt the vector with NaN
@@ -40,7 +40,7 @@ class TestSafeguardProtocol(unittest.TestCase):
         self.assertTrue(os.path.exists("brio_state.json"))
         
         # 2. Create new system instance
-        new_system = BrimSystem()
+        new_system = BrioSystem()
         # It should auto-load in __init__
         
         # 3. Verify joy is restored
@@ -66,3 +66,5 @@ class TestSafeguardProtocol(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+

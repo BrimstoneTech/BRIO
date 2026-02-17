@@ -7,13 +7,13 @@ import time
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from brim_main import BrimSystem
-from brim_media import MediaContext
-from brim_ideas import IdeaType
+from brio_main import BrioSystem
+from brio_media import MediaContext
+from brio_ideas import IdeaType
 
 class TestIntegrationPhase7_8(unittest.TestCase):
     def setUp(self):
-        self.system = BrimSystem()
+        self.system = BrioSystem()
 
     def test_media_reaction(self):
         # 1. Base state
@@ -61,3 +61,5 @@ class TestIntegrationPhase7_8(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+

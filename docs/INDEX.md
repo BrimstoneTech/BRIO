@@ -1,4 +1,4 @@
-# BRIM AI - Project Index
+# Brio - Project Index
 
 **Complete Python Prototype for Emotionally-Aware Intelligence System**
 
@@ -7,7 +7,7 @@
 ## 📋 Table of Contents
 
 ### 🚀 [START HERE: QUICKSTART.md](QUICKSTART.md)
-**30-second startup guide** - Get BRIM running in seconds!
+**30-second startup guide** - Get Brio running in seconds!
 - Quick startup instructions
 - Basic commands
 - Use cases
@@ -45,7 +45,7 @@
 - Emotions explained: "Emotion System" section
 
 #### 2. **[USAGE_GUIDE.md](USAGE_GUIDE.md)** - Complete User Guide
-**How to use BRIM - Commands, Examples, Scenarios**
+**How to use Brio - Commands, Examples, Scenarios**
 - Getting started step-by-step
 - Interactive CLI guide (3 step process)
 - 7 command references with examples
@@ -62,7 +62,7 @@
 - Learning examples: "Advanced Examples"
 
 #### 3. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical Design
-**How BRIM works under the hood**
+**How Brio works under the hood**
 - System architecture diagram
 - 5 core components
 - Data flow diagrams
@@ -132,7 +132,7 @@
 
 ## 🎯 Quick Navigation by Use Case
 
-### "I want to RUN BRIM right now"
+### "I want to RUN Brio right now"
 → [QUICKSTART.md](QUICKSTART.md)
 
 ### "I want to LEARN how to USE BRIM"
@@ -174,14 +174,14 @@
 ### Path 2: "Casual user" (30 minutes)
 1. [QUICKSTART.md](QUICKSTART.md) - Overview
 2. [USAGE_GUIDE.md](USAGE_GUIDE.md) - Commands & examples
-3. Run BRIM and explore
+3. Run Brio and explore
 4. Done!
 
 ### Path 3: "Power user" (2 hours)
 1. [README.md](README.md) - Features overview
 2. [USAGE_GUIDE.md](USAGE_GUIDE.md) - Complete guide
 3. [USAGE_GUIDE.md](USAGE_GUIDE.md) - Advanced examples
-4. Run BRIM and experiment
+4. Run Brio and experiment
 5. Done!
 
 ### Path 4: "Developer" (4 hours)
@@ -204,7 +204,7 @@
 ## 🗂️ File Organization
 
 ```
-BRIM AI/
+Brio/
 │
 ├── [EXECUTABLE]
 │   └── LogicSimulatedEmotionsandFeelings.py    (Main program - 600 lines)
@@ -220,8 +220,8 @@ BRIM AI/
 │   └── INDEX.md                                (This file)
 │
 └── [RUNTIME GENERATED]
-    ├── brim_interactions.db                    (SQLite database)
-    └── brim_export.json                        (Exported logs)
+    ├── brio_interactions.db                    (SQLite database)
+    └── brio_export.json                        (Exported logs)
 ```
 
 ---
@@ -424,7 +424,7 @@ All deliverables have been:
 
 ## 🌟 You're All Set!
 
-**BRIM AI is ready to use!**
+**Brio is ready to use!**
 
 ### Quick Start (Choose One)
 - **Fastest**: Open [QUICKSTART.md](QUICKSTART.md) and run the command
@@ -446,3 +446,5 @@ All deliverables have been:
 **Project Version**: 1.0  
 **Status**: Complete ✅  
 **Last Updated**: January 22, 2026
+
+

@@ -3,10 +3,10 @@ import unittest
 import sys
 import os
 
-# Add parent directory to path to import brim_emotions
+# Add parent directory to path to import brio_emotions
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from brim_emotions import EmotionEngine, EmotionTrigger
+from brio_emotions import EmotionEngine, EmotionTrigger
 
 class TestEmotionDynamics(unittest.TestCase):
     def setUp(self):
@@ -69,3 +69,5 @@ class TestEmotionDynamics(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+

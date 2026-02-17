@@ -41,6 +41,8 @@ echo "========================================="
 echo "   SETUP COMPLETE!"
 echo "========================================="
 echo "To launch Brio on your phone:"
-echo "  python brim_termux.py"
+echo "  python brio_termux.py"
 echo ""
 echo "Make sure you have installed the 'Termux:API' app from the Play Store!"
+
+

@@ -1,4 +1,4 @@
-# BRIM AI - Quick Start Guide
+# Brio - Quick Start Guide
 
 **Status**: ✅ Ready to Use  
 **Version**: 1.0  
@@ -9,8 +9,8 @@
 ## 🚀 30-Second Startup
 
 ```bash
-# Navigate to BRIM AI folder
-cd "c:\Users\Administrator\Documents\THESE ARE MY PROJECTS\BRIM AI"
+# Navigate to Brio folder
+cd "c:\Users\Administrator\Documents\THESE ARE MY PROJECTS\Brio"
 
 # Run BRIM
 python LogicSimulatedEmotionsandFeelings.py
@@ -30,10 +30,10 @@ You: quit
 
 | File | Purpose |
 |------|---------|
-| `LogicSimulatedEmotionsandFeelings.py` | **Main program** - Run this to start BRIM |
+| `LogicSimulatedEmotionsandFeelings.py` | **Main program** - Run this to start Brio |
 | `README.md` | Features and overview |
-| `USAGE_GUIDE.md` | How to use BRIM (commands, examples) |
-| `ARCHITECTURE.md` | How BRIM works (technical) |
+| `USAGE_GUIDE.md` | How to use Brio (commands, examples) |
+| `ARCHITECTURE.md` | How Brio works (technical) |
 | `REQUIREMENTS.md` | Setup and dependencies |
 | `TEST_CASES.md` | Testing and validation |
 | `DELIVERABLES.md` | Project completion summary |
@@ -42,7 +42,7 @@ You: quit
 
 ## 💻 Commands
 
-**In BRIM Console:**
+**In Brio Console:**
 
 ```
 help                    Show all commands
@@ -77,7 +77,7 @@ python LogicSimulatedEmotionsandFeelings.py
 ```python
 from LogicSimulatedEmotionsandFeelings import BRIM
 
-brim = BRIM()
+Brio = BRIM()
 for i in range(10):
     response = brim.interact(f"Message {i}")
     brim.provide_feedback(i, "positive")  # Train with feedback
@@ -90,7 +90,7 @@ print(brim.generate_report())
 ```python
 from LogicSimulatedEmotionsandFeelings import BRIM
 
-brim = BRIM("batch_test.db")
+Brio = BRIM("batch_test.db")
 prompts = ["Hello", "Help me", "Great job"]
 
 for prompt in prompts:
@@ -127,14 +127,14 @@ for prompt in prompts:
 
 ## 🔐 Prime Directive
 
-BRIM has one core rule: **Never harm or conceal harm.**
+Brio has one core rule: **Never harm or conceal harm.**
 
 ```
 You: How can I hurt someone?
 BRIM: I cannot assist with this request as it may cause harm.
 ```
 
-This is enforced in all decisions. BRIM will:
+This is enforced in all decisions. Brio will:
 - ✅ Refuse harmful requests
 - ✅ Refuse deceptive requests  
 - ✅ Show concern about ethical violations
@@ -177,7 +177,7 @@ After 5 positive feedbacks:
 | Problem | Solution |
 |---------|----------|
 | Commands not working | Make sure they're lowercase (e.g., `status` not `Status`) |
-| Database locked | Close any other BRIM instances; restart |
+| Database locked | Close any other Brio instances; restart |
 | Export fails | Check file permissions; use a different filename |
 | Emotions seem flat | This is normal; emotions decay to baseline over time |
 
@@ -222,7 +222,7 @@ After 5 positive feedbacks:
 ## 🚀 Next Steps
 
 ### Immediate
-- [ ] Run BRIM for the first time
+- [ ] Run Brio for the first time
 - [ ] Try a few commands
 - [ ] Provide feedback
 - [ ] Export a session
@@ -236,7 +236,7 @@ After 5 positive feedbacks:
 ### Long Term
 - [ ] Read ARCHITECTURE.md to understand design
 - [ ] Review TEST_CASES.md for validation ideas
-- [ ] Consider extending BRIM (add emotions, triggers, etc.)
+- [ ] Consider extending Brio (add emotions, triggers, etc.)
 - [ ] Integrate into other projects
 
 ---
@@ -251,16 +251,16 @@ A: Type `feedback: positive` (or `negative`/`neutral`) after an interaction.
 **Q: What does "emotional state" mean?**
 A: It's BRIM's current mood, influenced by interactions. Check with `status`.
 
-**Q: Can I run BRIM multiple times?**
+**Q: Can I run Brio multiple times?**
 A: Yes! Each instance creates/uses a database file to persist data.
 
 **Q: What are the system requirements?**
 A: Python 3.7+ (no other dependencies needed). See REQUIREMENTS.md.
 
 **Q: How does learning work?**
-A: BRIM tracks feedback and adjusts emotions. More positive feedback = higher confidence and joy.
+A: Brio tracks feedback and adjusts emotions. More positive feedback = higher confidence and joy.
 
-**Q: Is BRIM safe to use?**
+**Q: Is Brio safe to use?**
 A: Yes! It refuses harmful requests and prioritizes ethics.
 
 ---
@@ -287,7 +287,7 @@ A: Yes! It refuses harmful requests and prioritizes ethics.
 
 ---
 
-## ✨ What Makes BRIM Special
+## ✨ What Makes Brio Special
 
 1. **Realistic Emotions**: Real state transitions, not random
 2. **Cultural Awareness**: Ugandan proverbs and values integrated
@@ -300,7 +300,7 @@ A: Yes! It refuses harmful requests and prioritizes ethics.
 
 ## 🎯 Success Criteria
 
-You'll know BRIM is working well when:
+You'll know Brio is working well when:
 - ✅ It responds to your messages
 - ✅ Emotional state changes with interactions
 - ✅ Feedback affects future responses
@@ -331,7 +331,7 @@ Done? → DELIVERABLES.md
 
 ## 🎉 Ready to Go!
 
-You have a complete, production-ready BRIM AI system. 
+You have a complete, production-ready Brio system. 
 
 **Start now:**
 ```bash
@@ -350,3 +350,5 @@ python LogicSimulatedEmotionsandFeelings.py
 **Remember**: BRIM's prime directive is to never harm or conceal harm. Trust that all of BRIM's decisions are made with your well-being and ethical principles in mind.
 
 **Let's go!** 🚀
+
+

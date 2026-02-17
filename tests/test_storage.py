@@ -2,14 +2,14 @@ import pytest
 import sqlite3
 import json
 from datetime import datetime
-from brim_storage import InteractionRecord
+from brio_storage import InteractionRecord
 
 
 def test_save_and_retrieve_interaction(test_storage):
     record = InteractionRecord(
         timestamp=datetime.now(),
         user_input="Test input",
-        brim_response="Test response",
+        brio_response="Test response",
         user_feedback=None,
         emotion_state={"joy": 0.5},
         decision_factors={"confidence": 0.8},
@@ -20,7 +20,7 @@ def test_save_and_retrieve_interaction(test_storage):
 
     retrieved = test_storage.get_interaction(pk)
     assert retrieved.user_input == "Test input"
-    assert retrieved.brim_response == "Test response"
+    assert retrieved.brio_response == "Test response"
     assert retrieved.emotion_state["joy"] == 0.5
 
 
@@ -38,3 +38,5 @@ def test_timeline_recording(test_storage):
     timeline = test_storage.get_emotional_timeline()
     assert len(timeline) == 1
     assert timeline[0][1]["joy"] == 0.8
+
+

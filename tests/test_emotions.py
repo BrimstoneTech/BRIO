@@ -1,5 +1,5 @@
 import pytest
-from brim_emotions import EmotionType, EmotionTrigger
+from brio_emotions import EmotionType, EmotionTrigger
 
 
 def test_initial_state(emotion_engine):
@@ -43,3 +43,5 @@ def test_bounds_validation(emotion_engine):
         emotion_engine.apply_trigger(EmotionTrigger.USER_PRAISE, intensity=0.3)
 
     assert emotion_engine.get_state().joy <= 1.0
+
+

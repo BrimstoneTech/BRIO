@@ -3,10 +3,10 @@ import unittest
 import sys
 import os
 
-# Add parent directory to path to import brim_learning
+# Add parent directory to path to import brio_learning
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from brim_learning import QLearningAgent
+from brio_learning import QLearningAgent
 
 class TestQLearning(unittest.TestCase):
     def setUp(self):
@@ -38,3 +38,5 @@ class TestQLearning(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
