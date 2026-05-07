@@ -1,0 +1,5 @@
+# Brio Web — Minimal Dependencies
+# Total: 3 packages. That's it.
+flask>=3.0
+flask-socketio>=5.3
+requests>=2.31
