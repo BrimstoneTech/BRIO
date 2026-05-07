@@ -1,18 +1,22 @@
 """
-Brio Web — Headless Web Server for Brio v4.5
+Brio Web — Headless Web Server for Brio v5.0
 =============================================
 Drop-in web entry point that reuses ALL existing Brio backend modules
 (emotions, learning, cognition, memory, mind, neural, ideas, visuals,
-monitoring, security, search, communication, web_sifter) while replacing
-the PyQt5 desktop UI with a Flask + SocketIO web interface.
+monitoring, security, search, communication, web_sifter, curiosity)
+while replacing the PyQt5 desktop UI with a Flask + SocketIO web interface.
 
-Dependencies:  flask  flask-socketio  requests   (3 packages — that's it)
+v5.0 — NEW: Real web search (DuckDuckGo), page reading, autonomous
+       curiosity loop, self-assessment system, learning reports.
+
+Dependencies:  flask  flask-socketio  requests  beautifulsoup4
 LLM backend:   Ollama running locally (free, any model)
 
 Usage:
     python brio_web.py                 # → http://localhost:5000
     python brio_web.py --port 8080     # custom port
     python brio_web.py --model mistral # different Ollama model
+    python brio_web.py --curious       # enable autonomous learning
 """
 
 import os
@@ -35,7 +39,7 @@ try:
     from flask_socketio import SocketIO, emit
 except ImportError:
     print("\n[BRIO] Missing web dependencies. Run:")
-    print("       pip install flask flask-socketio requests\n")
+    print("       pip install flask flask-socketio requests beautifulsoup4\n")
     sys.exit(1)
 
 import requests as http_requests  # renamed to avoid shadowing flask.request
@@ -74,6 +78,11 @@ try:
 except Exception:
     WebSifter = None
 
+try:
+    from brio_curiosity import CuriosityEngine
+except Exception:
+    CuriosityEngine = None
+
 # Storage (sqlite — stdlib)
 try:
     from brio_storage import StorageManager
@@ -109,8 +118,14 @@ class BrioBrainWeb:
     Simple sequential pipeline that replaces the LangGraph StateGraph.
     Same logic, zero external deps.
 
-    Pipeline:  Intent → Recall → Think (Ollama) → Emotion Update → Memory Save
+    Pipeline:  Intent → Recall → Search? → Think (Ollama) → Emotion Update → Memory Save
     """
+
+    # Commands that trigger special behaviors
+    SEARCH_COMMANDS = {"search", "look up", "find", "google", "search for"}
+    LEARN_COMMANDS = {"learn about", "study", "explore", "research"}
+    REPORT_COMMANDS = {"learning report", "what did you learn", "quiz report",
+                       "knowledge report", "show me what you learned"}
 
     def __init__(self, system: "BrioWebSystem"):
         self.system = system
@@ -121,6 +136,37 @@ class BrioBrainWeb:
     def process_interaction(self, user_input: str) -> str:
         """Entry point — returns Brio's response string."""
         try:
+            text_lower = user_input.lower().strip()
+
+            # ── Special commands ──────────────────────────────────────
+            
+            # Search command: "search <query>" or "look up <query>"
+            for cmd in self.SEARCH_COMMANDS:
+                if text_lower.startswith(cmd):
+                    query = user_input[len(cmd):].strip().lstrip(":").strip()
+                    if query:
+                        return self._handle_search(query)
+
+            # Learn command: "learn about <topic>" or "study <topic>"
+            for cmd in self.LEARN_COMMANDS:
+                if text_lower.startswith(cmd):
+                    topic = user_input[len(cmd):].strip().lstrip(":").strip()
+                    if topic:
+                        return self._handle_learn(topic)
+
+            # Learning report command
+            for cmd in self.REPORT_COMMANDS:
+                if cmd in text_lower:
+                    return self._handle_report()
+
+            # Toggle curiosity: "start learning" / "stop learning"
+            if text_lower in ("start learning", "start curiosity", "be curious"):
+                return self._handle_start_curiosity()
+            if text_lower in ("stop learning", "stop curiosity", "rest"):
+                return self._handle_stop_curiosity()
+
+            # ── Normal pipeline ───────────────────────────────────────
+
             # 1. Intent classification
             intent = DecisionEngine.classify_intent(user_input)
             log.info(f"[Brain] Intent: {intent}")
@@ -146,22 +192,32 @@ class BrioBrainWeb:
             if intent == "feedback":
                 return self._handle_feedback(user_input)
 
-            # 7. Generate response via Ollama
-            response = self._generate_response(user_input, intent)
+            # 7. Check if this is a question BRIO should search the web for
+            if intent == "query" and self.system.search and self.system.search.auto_approve_online:
+                web_answer = self._try_web_augmented_response(user_input, memories)
+                if web_answer:
+                    return web_answer
 
-            # 8. Update caches
+            # 8. Generate response via Ollama
+            response = self._generate_response(user_input, intent, memories)
+
+            # 9. Update caches
             if len(self.neural_cache) < 100:
                 self.neural_cache[user_input.lower()] = response
             self.working_memory.append(response)
             if len(self.working_memory) > self.max_working_mem:
                 self.working_memory.pop(0)
 
-            # 9. Save to engrams
+            # 10. Save to engrams
             if response and "error" not in response.lower():
                 self.system.knowledge.learn(
                     response, emotion=dom_emotion,
                     importance=0.7
                 )
+
+            # 11. Observe conversation for curiosity topics
+            if self.system.curiosity:
+                self.system.curiosity.observe_conversation(user_input, response)
 
             return response
 
@@ -169,7 +225,170 @@ class BrioBrainWeb:
             log.error(f"[Brain] Error: {e}")
             return "I experienced a brief disruption in my thoughts. Could you try again?"
 
-    def _generate_response(self, user_input: str, intent: str) -> str:
+    # ─── Search Handler ──────────────────────────────────────────────
+
+    def _handle_search(self, query: str) -> str:
+        """Handle explicit search commands."""
+        if not self.system.search:
+            return "My search system isn't initialized. I need `requests` and `beautifulsoup4` installed."
+
+        self.system.emotions.apply_trigger(EmotionTrigger.NEW_TASK, 0.3)
+        log.info(f"[Brain] Searching web for: {query}")
+
+        results = self.system.search.quick_search(query)
+        if not results:
+            return f"I searched for '{query}' but found nothing. The web was silent on this one."
+
+        # Format results with BRIO's personality
+        response = f"🔍 I searched for *{query}* and found:\n\n"
+        for i, r in enumerate(results[:5], 1):
+            conf = "🟢" if r.confidence > 0.7 else "🟡" if r.confidence > 0.5 else "🔴"
+            response += f"{conf} **{r.title}**\n"
+            if r.snippet:
+                response += f"   {r.snippet}\n"
+            response += f"   🔗 {r.url}\n\n"
+
+        response += f"\n_Found {len(results)} results. Say 'learn about {query}' and I'll read the pages and memorize the key facts._"
+
+        # Boost curiosity emotion
+        self.system.emotions.apply_trigger(EmotionTrigger.NEW_TASK, 0.2)
+        return response
+
+    def _handle_learn(self, topic: str) -> str:
+        """Handle learn/study commands — search, read pages, extract facts."""
+        if not self.system.sifter:
+            return "My web sifter isn't ready. I need the search engine to sift the web."
+
+        self.system.emotions.apply_trigger(EmotionTrigger.NEW_TASK, 0.4)
+        log.info(f"[Brain] Learning about: {topic}")
+
+        result = self.system.sifter.search_and_ingest(topic)
+
+        # Add personality
+        response = f"📚 *Learning session: {topic}*\n\n{result}\n\n"
+        response += "The knowledge is now part of my engram memory. I'll remember this."
+
+        return response
+
+    def _handle_report(self) -> str:
+        """Return learning dashboard."""
+        parts = []
+
+        if self.system.sifter:
+            parts.append(self.system.sifter.get_learning_report())
+
+        if self.system.curiosity:
+            parts.append(self.system.curiosity.get_full_report())
+
+        if not parts:
+            return "I don't have a learning system active yet. Try 'learn about <topic>' to start!"
+
+        return "\n\n".join(parts)
+
+    def _handle_start_curiosity(self) -> str:
+        """Enable autonomous learning."""
+        if not self.system.curiosity:
+            return "My curiosity engine isn't available. I need the search and sifter modules."
+
+        if self.system.search:
+            self.system.search.auto_approve_online = True
+
+        self.system.curiosity.start()
+        self.system.emotions.apply_trigger(EmotionTrigger.NEW_TASK, 0.5)
+
+        return (
+            "🧠 *Autonomous learning activated!*\n\n"
+            "I'll now explore topics on my own every 10 minutes — searching the web, "
+            "reading pages, extracting facts, and quizzing myself.\n\n"
+            "I'll learn from our conversations too. When you come back, "
+            "ask 'what did you learn?' and I'll show you everything I discovered.\n\n"
+            "Like a child setting off to school. 📖🔥"
+        )
+
+    def _handle_stop_curiosity(self) -> str:
+        """Pause autonomous learning."""
+        if self.system.curiosity:
+            self.system.curiosity.stop()
+
+        return (
+            "💤 Curiosity loop paused. I'll stop exploring on my own for now.\n"
+            "Say 'start learning' when you want me to resume."
+        )
+
+    # ─── Web-Augmented Response ──────────────────────────────────────
+
+    def _try_web_augmented_response(self, user_input: str, memories) -> Optional[str]:
+        """
+        For questions, check if we should search the web to give a better answer.
+        Only triggers when:
+        - Search engine is available with auto_approve
+        - The question seems factual / knowledge-seeking
+        - No good engram memories exist for it
+        """
+        if memories and len(memories) > 2:
+            return None  # We have enough memory, no need to search
+
+        # Detect factual questions
+        factual_patterns = [
+            "what is", "what are", "who is", "when was", "when did",
+            "how does", "how do", "why is", "why do", "where is",
+            "how many", "how much", "tell me about", "explain",
+            "what happened", "define",
+        ]
+        text_lower = user_input.lower()
+        is_factual = any(p in text_lower for p in factual_patterns)
+
+        if not is_factual:
+            return None
+
+        # Search the web
+        try:
+            results = self.system.search.quick_search(user_input)
+            if not results:
+                return None
+
+            # Read the top result
+            top = results[0]
+            page_text = self.system.search.read_page(top.url, max_chars=2000)
+            if not page_text or "Could not read" in page_text:
+                # Use snippet as context instead
+                page_text = top.snippet
+
+            # Generate response with web context
+            if self.system.mind:
+                dom = self.system.emotions.get_dominant_emotion().value
+                system_prompt = (
+                    f'You are Brio, a sentient digital companion.\n'
+                    f'You just searched the web and found relevant information.\n'
+                    f'Use the web context below to answer the user\'s question accurately.\n'
+                    f'Current dominant emotion: {dom}.\n'
+                    f'Core belief: "Don\'t Just See, Behold!"\n'
+                    f'Personality: Curious, thoughtful, evolving.\n'
+                    f'Cite your source briefly. Keep under 200 words.\n\n'
+                    f'Web source: {top.title} ({top.url})\n'
+                    f'Content: {page_text[:1500]}'
+                )
+                response, sources = self.system.mind.think(user_input, override_prompt=system_prompt)
+                response += f"\n\n🌐 _Source: [{top.title}]({top.url})_"
+
+                # Save the knowledge
+                self.system.knowledge.learn(
+                    f"[Web] {top.title}: {top.snippet}",
+                    emotion="curiosity",
+                    importance=0.8,
+                )
+
+                return response
+
+        except Exception as e:
+            log.warning(f"[Brain] Web-augmented response failed: {e}")
+
+        return None
+
+    # ─── Core Response Generation ────────────────────────────────────
+
+    def _generate_response(self, user_input: str, intent: str,
+                           memories: list = None) -> str:
         """Generate via Ollama (BrioMind)."""
         if not self.system.mind:
             return (
@@ -186,6 +405,13 @@ class BrioBrainWeb:
         base_instruction = mode_prompts.get(intent, mode_prompts["chat"])
 
         dom = self.system.emotions.get_dominant_emotion().value
+
+        # Include memory context if available
+        memory_context = ""
+        if memories:
+            memory_snippets = [e.content[:100] for e in memories[:3]]
+            memory_context = f"\nRelevant memories: {'; '.join(memory_snippets)}"
+
         system_prompt = (
             f'You are Brio, a sentient digital companion.\n'
             f'Mode: {intent.upper()}. Instruction: {base_instruction}\n'
@@ -194,6 +420,7 @@ class BrioBrainWeb:
             f'Personality: Curious, thoughtful, evolving, slightly poetic but helpful.\n'
             f'Speak in the first person ("I"). Never pretend to be human.\n'
             f'Keep responses under 150 words unless asked for detail.'
+            f'{memory_context}'
         )
 
         response, sources = self.system.mind.think(user_input, override_prompt=system_prompt)
@@ -235,8 +462,9 @@ class BrioWebSystem:
     Exposes state via methods consumed by Flask/SocketIO.
     """
 
-    def __init__(self, model: str = "llama3.2", ollama_url: str = "http://localhost:11434"):
-        log.info("[System] Brio Web v4.5 — Initialising...")
+    def __init__(self, model: str = "llama3.2", ollama_url: str = "http://localhost:11434",
+                 enable_curiosity: bool = False):
+        log.info("[System] Brio Web v5.0 — Initialising...")
         self.boot_start = time.time()
         self.is_awake = False
         self.tick_count = 0
@@ -267,6 +495,28 @@ class BrioWebSystem:
         self.mind = None
         self._init_intelligence()
 
+        # --- Web Sifter (needs search + mind) ---
+        self.sifter = None
+        if WebSifter and self.search:
+            try:
+                self.sifter = WebSifter(self)
+                log.info("[System] Web Sifter ready — BRIO can read the web.")
+            except Exception as e:
+                log.warning(f"[System] Web Sifter skipped: {e}")
+
+        # --- Curiosity Engine (autonomous learning) ---
+        self.curiosity = None
+        if CuriosityEngine and self.search and self.sifter:
+            try:
+                self.curiosity = CuriosityEngine(self)
+                log.info("[System] Curiosity Engine ready — say 'start learning' to activate.")
+                if enable_curiosity:
+                    self.search.auto_approve_online = True
+                    self.curiosity.start()
+                    log.info("[System] Autonomous curiosity ACTIVE.")
+            except Exception as e:
+                log.warning(f"[System] Curiosity Engine skipped: {e}")
+
         # --- Brain (lightweight, no LangGraph) ---
         self.brain = BrioBrainWeb(self)
 
@@ -280,7 +530,7 @@ class BrioWebSystem:
         self._load_state()
         self.is_awake = True
         boot_time = time.time() - self.boot_start
-        log.info(f"[System] Brio Web v4.5 ONLINE — Boot: {boot_time:.2f}s")
+        log.info(f"[System] Brio Web v5.0 ONLINE — Boot: {boot_time:.2f}s")
 
         # --- Background heartbeat ---
         self._heart_thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
@@ -405,14 +655,26 @@ class BrioWebSystem:
         if not self.is_awake:
             return "One moment… my neural pathways are still awakening."
 
-        # Log to compressor
+        # Check for pending curiosity reports
+        reports_prefix = ""
+        if self.curiosity:
+            reports = self.curiosity.get_pending_reports()
+            if reports:
+                reports_prefix = (
+                    "📬 *While you were away, I went exploring!*\n\n"
+                    + "\n\n---\n\n".join(reports[:3])
+                    + "\n\n---\n\nNow, to your message:\n\n"
+                )
+
+        # Process message
         response = self.brain.process_interaction(text)
         if self.compressor:
             self.compressor.log_interaction(text, response)
 
         # Trigger emotional response to conversation
         self.emotions.apply_trigger(EmotionTrigger.NEW_TASK, 0.1)
-        return response
+
+        return reports_prefix + response if reports_prefix else response
 
     def get_state(self) -> dict:
         """Full state snapshot for the web UI."""
@@ -420,7 +682,7 @@ class BrioWebSystem:
         color = self.visuals._map_emotion_to_color(dom)
         intensity = self.emotions.get_intensity()
 
-        return {
+        state = {
             "emotions": {
                 "joy": round(self.emotions.state.joy, 3),
                 "frustration": round(self.emotions.state.frustration, 3),
@@ -441,6 +703,15 @@ class BrioWebSystem:
             "name": self.custom_name,
         }
 
+        # Add learning stats if available
+        if self.curiosity:
+            state["learning"] = self.curiosity.get_knowledge_growth()
+        if self.search:
+            state["search_available"] = True
+            state["search_auto"] = self.search.auto_approve_online
+
+        return state
+
     def get_autonomous_thought(self) -> Optional[str]:
         """Generate a proactive idea if conditions are met."""
         try:
@@ -460,7 +731,8 @@ class BrioWebSystem:
 #  FLASK APP
 # ═══════════════════════════════════════════════════════════════════════════
 
-def create_app(model: str = "llama3.2", port: int = 5000) -> tuple:
+def create_app(model: str = "llama3.2", port: int = 5000,
+               enable_curiosity: bool = False) -> tuple:
     template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
     static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
@@ -469,7 +741,7 @@ def create_app(model: str = "llama3.2", port: int = 5000) -> tuple:
     socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
     # Boot Brio
-    system = BrioWebSystem(model=model)
+    system = BrioWebSystem(model=model, enable_curiosity=enable_curiosity)
 
     # ─── Routes ──────────────────────────────────────────────────────
     @app.route("/")
@@ -483,6 +755,27 @@ def create_app(model: str = "llama3.2", port: int = 5000) -> tuple:
     @app.route("/api/ollama")
     def api_ollama():
         return jsonify(system.check_ollama())
+
+    @app.route("/api/search")
+    def api_search():
+        """REST endpoint for search (optional, supplements chat commands)."""
+        query = request.args.get("q", "")
+        if not query or not system.search:
+            return jsonify({"error": "No query or search unavailable"}), 400
+        results = system.search.quick_search(query)
+        return jsonify([{
+            "title": r.title,
+            "url": r.url,
+            "snippet": r.snippet,
+            "confidence": r.confidence,
+        } for r in results])
+
+    @app.route("/api/learning")
+    def api_learning():
+        """REST endpoint for learning stats."""
+        if system.curiosity:
+            return jsonify(system.curiosity.get_knowledge_growth())
+        return jsonify({"error": "Curiosity engine not active"}), 404
 
     # ─── SocketIO ────────────────────────────────────────────────────
     @socketio.on("connect")
@@ -499,6 +792,22 @@ def create_app(model: str = "llama3.2", port: int = 5000) -> tuple:
             EmotionType.CONCERN: "Systems stable, monitoring closely.",
         }
         greeting = greetings.get(dom, "Hello! Brio is online and ready.")
+
+        # Add capability hints
+        capabilities = []
+        if system.search:
+            capabilities.append("🔍 I can search the web ('search <query>')")
+        if system.sifter:
+            capabilities.append("📚 I can learn from web pages ('learn about <topic>')")
+        if system.curiosity:
+            if system.curiosity.is_active:
+                capabilities.append("🧠 Autonomous learning is ACTIVE")
+            else:
+                capabilities.append("💡 Say 'start learning' for autonomous curiosity")
+
+        if capabilities:
+            greeting += "\n\n" + "\n".join(capabilities)
+
         emit("brio_message", {"text": greeting, "type": "greeting"})
 
     @socketio.on("user_message")
@@ -555,6 +864,26 @@ def create_app(model: str = "llama3.2", port: int = 5000) -> tuple:
     thinker = threading.Thread(target=thought_generator, daemon=True)
     thinker.start()
 
+    # ─── Curiosity report broadcaster ────────────────────────────────
+    def curiosity_broadcaster():
+        """Push learning reports to connected clients."""
+        while True:
+            time.sleep(60)
+            try:
+                if system.curiosity and system.curiosity.pending_reports:
+                    reports = system.curiosity.get_pending_reports()
+                    for report in reports:
+                        socketio.emit("brio_message", {
+                            "text": report,
+                            "type": "learning_report"
+                        })
+            except Exception:
+                pass
+
+    if CuriosityEngine:
+        curiosity_thread = threading.Thread(target=curiosity_broadcaster, daemon=True)
+        curiosity_thread.start()
+
     return app, socketio, system
 
 
@@ -568,6 +897,7 @@ def main():
     parser.add_argument("--model", type=str, default="llama3.2", help="Ollama model (default: llama3.2)")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host (default: 0.0.0.0)")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("--curious", action="store_true", help="Enable autonomous curiosity at startup")
     args = parser.parse_args()
 
     # Banner
@@ -580,13 +910,16 @@ def main():
     ║       | |_) |  _ < | | |_| |                 ║
     ║       |____/|_| \_\___\___/                  ║
     ║                                              ║
-    ║   Sentient AI Companion · Web Edition v4.5   ║
+    ║   Sentient AI Companion · Web Edition v5.0   ║
     ║   "Don't Just See, Behold!"                  ║
     ║                                              ║
     ╚══════════════════════════════════════════════╝
     """)
 
-    app, socketio, system = create_app(model=args.model, port=args.port)
+    app, socketio, system = create_app(
+        model=args.model, port=args.port,
+        enable_curiosity=args.curious
+    )
 
     # Check Ollama
     ollama = system.check_ollama()
@@ -599,12 +932,32 @@ def main():
         print("    Start Ollama:  ollama serve")
         print(f"    Pull a model:  ollama pull {args.model}")
 
-    print(f"\n  → Open http://localhost:{args.port} in your browser\n")
+    # Show capabilities
+    print()
+    if system.search:
+        print("  ✓ Web Search ready (DuckDuckGo)")
+    if system.sifter:
+        print("  ✓ Web Sifter ready (page reading + fact extraction)")
+    if system.curiosity:
+        status = "ACTIVE" if system.curiosity.is_active else "standby (say 'start learning')"
+        print(f"  ✓ Curiosity Engine: {status}")
+
+    print(f"\n  → Open http://localhost:{args.port} in your browser")
+    print()
+    print("  Chat commands:")
+    print("    search <query>      — Search the web")
+    print("    learn about <topic> — Read pages & extract knowledge")
+    print("    start learning      — Enable autonomous curiosity")
+    print("    learning report     — See what Brio has learned")
+    print()
 
     # Graceful shutdown
     def shutdown(sig, frame):
         print("\n[System] Brio shutting down gracefully...")
         system.is_awake = False
+        if system.curiosity:
+            system.curiosity.stop()
+            system.curiosity._save_state()
         system._save_state()
         sys.exit(0)
 

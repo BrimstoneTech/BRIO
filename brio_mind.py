@@ -46,21 +46,26 @@ Brio:"""
         
         try:
             # Call local Ollama (completely offline)
+            # Timeout 120s — longer prompts need more time on modest hardware
             response = requests.post(self.ollama_url, 
                 json={
                     "model": self.model,
                     "prompt": full_prompt,
                     "stream": False,
                     "options": {"temperature": 0.7}
-                }, timeout=30)
+                }, timeout=120)
             
             if response.status_code == 200:
                 brio_response = response.json().get('response', '')
             else:
                 brio_response = f"I am having trouble collecting my thoughts. (Ollama Error: {response.status_code})"
                 
-        except requests.exceptions.RequestException:
+        except requests.exceptions.ConnectionError:
             brio_response = "I cannot reach my inner voice (Ollama). Please check if my neural core is running."
+        except requests.exceptions.Timeout:
+            brio_response = "My thoughts are taking longer than usual... please try a shorter message or wait a moment and try again."
+        except requests.exceptions.RequestException as e:
+            brio_response = f"A ripple in my neural pathways: {type(e).__name__}. I'll try to recover."
         
         # Save to conversation history
         self.conversation_history.append({

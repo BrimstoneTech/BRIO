@@ -1,5 +1,7 @@
-# Brio Web — Minimal Dependencies
-# Total: 3 packages. That's it.
+# Brio Web v5.0 — Dependencies
+# All free, all lightweight
+
 flask>=3.0
 flask-socketio>=5.3
 requests>=2.31
+beautifulsoup4>=4.12
