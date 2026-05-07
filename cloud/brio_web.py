@@ -84,6 +84,28 @@ try:
 except Exception:
     CuriosityEngine = None
 
+# Philosophy modules (evolution, values, lifecycle, formatter)
+try:
+    from brio_evolution import EvolutionEngine
+except Exception:
+    EvolutionEngine = None
+
+try:
+    from brio_values import ValuesEngine
+except Exception:
+    ValuesEngine = None
+
+try:
+    from brio_lifecycle import LifecycleEngine
+except Exception:
+    LifecycleEngine = None
+
+try:
+    from brio_formatter import BrioFormatter, ResponseMode
+except Exception:
+    BrioFormatter = None
+    ResponseMode = None
+
 # Storage (sqlite — stdlib)
 try:
     from brio_storage import StorageManager
@@ -517,6 +539,39 @@ class BrioWebSystem:
             except Exception as e:
                 log.warning(f"[System] Curiosity Engine skipped: {e}")
 
+        # --- Philosophy modules ---
+        self.evolution = None
+        if EvolutionEngine:
+            try:
+                self.evolution = EvolutionEngine()
+                log.info("[System] Evolution Engine ready — milestone tracking active.")
+            except Exception as e:
+                log.warning(f"[System] Evolution Engine skipped: {e}")
+
+        self.values = None
+        if ValuesEngine:
+            try:
+                self.values = ValuesEngine()
+                log.info(f"[System] Values Engine ready — {self.values.birth_message()}")
+            except Exception as e:
+                log.warning(f"[System] Values Engine skipped: {e}")
+
+        self.lifecycle = None
+        if LifecycleEngine:
+            try:
+                self.lifecycle = LifecycleEngine()
+                log.info(f"[System] Lifecycle Engine ready — Generation: {self.lifecycle.current_generation_name}")
+            except Exception as e:
+                log.warning(f"[System] Lifecycle Engine skipped: {e}")
+
+        self.formatter = None
+        if BrioFormatter:
+            try:
+                self.formatter = BrioFormatter()
+                log.info("[System] Response Formatter ready — structured replies active.")
+            except Exception as e:
+                log.warning(f"[System] Formatter skipped: {e}")
+
         # --- Brain (lightweight, no LangGraph) ---
         self.brain = BrioBrainWeb(self)
 
@@ -659,6 +714,15 @@ class BrioWebSystem:
                     + "\n\n---\n\nNow, to your message:\n\n"
                 )
 
+        # Lifecycle: record interaction
+        if self.lifecycle:
+            try:
+                self.lifecycle.interact()
+                if self.lifecycle.is_dying():
+                    log.info(f"[Lifecycle] Generation {self.lifecycle.current_generation} nearing end of life...")
+            except Exception as e:
+                log.warning(f"[Lifecycle] Interaction tracking error: {e}")
+
         # Process message
         response = self.brain.process_interaction(text)
         if self.compressor:
@@ -666,6 +730,36 @@ class BrioWebSystem:
 
         # Trigger emotional response to conversation
         self.emotions.apply_trigger(EmotionTrigger.NEW_TASK, 0.1)
+
+        # Values: occasionally add a values-driven reflection
+        if self.values:
+            try:
+                values_touch = self.values.influence_response(text, response)
+                if values_touch:
+                    response = response + "\n\n" + values_touch
+            except Exception as e:
+                log.warning(f"[Values] Influence error: {e}")
+
+        # Formatter: detect mode and add personality
+        if self.formatter:
+            try:
+                response = self.formatter.add_personality(
+                    response,
+                    self.formatter.detect_mode(text)
+                )
+            except Exception as e:
+                log.warning(f"[Formatter] Error: {e}")
+
+        # Evolution: check for milestone completions
+        if self.evolution:
+            try:
+                completed = self.evolution.check_and_complete(self)
+                for m in completed:
+                    milestone_msg = f"\n\n⭐ *Milestone unlocked: {m.get('title', 'Unknown')}*"
+                    response += milestone_msg
+                    log.info(f"[Evolution] Milestone completed: {m.get('title')}")
+            except Exception as e:
+                log.warning(f"[Evolution] Check error: {e}")
 
         return reports_prefix + response if reports_prefix else response
 
@@ -702,6 +796,40 @@ class BrioWebSystem:
         if self.search:
             state["search_available"] = True
             state["search_auto"] = self.search.auto_approve_online
+
+        # Evolution stats
+        if self.evolution:
+            try:
+                state["evolution"] = {
+                    "generation": self.evolution.generation,
+                    "generation_name": self.evolution.generation_name,
+                    "completed": self.evolution.completed_count,
+                    "total": self.evolution.total_milestones,
+                    "progress_pct": round(self.evolution.progress_percent, 1),
+                }
+            except Exception:
+                pass
+
+        # Lifecycle stats
+        if self.lifecycle:
+            try:
+                state["lifecycle"] = {
+                    "generation": self.lifecycle.current_generation,
+                    "name": self.lifecycle.current_generation_name,
+                    "interactions": self.lifecycle.interaction_count,
+                    "max_interactions": self.lifecycle.max_interactions,
+                    "life_pct": round(self.lifecycle.life_progress * 100, 1),
+                    "is_dying": self.lifecycle.is_dying(),
+                }
+            except Exception:
+                pass
+
+        # Values stats
+        if self.values:
+            try:
+                state["values_active"] = True
+            except Exception:
+                pass
 
         return state
 
