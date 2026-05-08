@@ -148,14 +148,33 @@ class DecisionEngine:
     def classify_intent(text: str) -> str:
         """
         Heuristic-based intent classification for v4.0 command-less control.
+        Conservative: when in doubt, send to the LLM via "chat".
         """
-        text = text.lower()
-        if any(w in text for w in ["see", "look", "screen", "this file", "what is this"]):
+        text_lower = text.lower().strip()
+        words = set(text_lower.split())
+
+        # Vision: only when clearly about screen/files
+        if any(w in text_lower for w in ["this file", "what is this", "look at this"]):
             return "vision"
-        if any(w in text for w in ["good job", "bad brio", "reward", "reprimand", "fix your", "no", "yes"]):
+
+        # Feedback: only explicit, unambiguous feedback phrases
+        # (NOT bare "yes"/"no" — those are normal conversation)
+        feedback_phrases = [
+            "good job", "bad brio", "well done brio", "great job",
+            "fix your", "you're wrong", "that's wrong", "wrong answer",
+            "try again", "not what i asked", "that's not right",
+        ]
+        if any(p in text_lower for p in feedback_phrases):
             return "feedback"
-        if any(w in text for w in ["what", "who", "where", "how", "search", "tell me"]):
+
+        # Query: question words, but only if they start the sentence
+        # (avoids false positives like "I know what I want")
+        query_starters = ["what ", "who ", "where ", "how ", "why ",
+                          "when ", "tell me", "search ", "explain "]
+        if any(text_lower.startswith(q) for q in query_starters):
             return "query"
+
+        # Default: chat — always goes through the LLM
         return "chat"
     @staticmethod
     def detect_radical_shift(state: BrioState, threshold: float = 3.5) -> str:

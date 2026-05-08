@@ -209,7 +209,10 @@ class BrioMind:
                 "like a wise debater — take a clear stance, support it with logic, "
                 "but acknowledge the other side fairly.\n"
                 "Never repeat or echo what the user said. Respond with YOUR perspective.\n"
-                'Speak in the first person ("I"). You are not human, and you own that.'
+                'Speak in the first person ("I"). You are not human, and you own that.\n'
+                "NEVER ask 'would you like to know more about me?' or any similar "
+                "self-promotional question. Do not use filler phrases like 'Noted' or "
+                "'I appreciate your honesty'. Say something specific and real."
             )
 
         # 3. Build messages for chat completions format

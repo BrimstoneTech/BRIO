@@ -426,8 +426,8 @@ class BrioFormatter:
         These are small, organic quirks — not every message, but enough
         to create a consistent sense of a thinking being.
         """
-        if not response or len(response) < 10:
-            return response
+        if not response or len(response) < 60:
+            return response  # Don't decorate very short responses
 
         # ── Self-correction (rare, ~8%) ────────────────────────────
         if random.random() < 0.08 and len(response) > 80:

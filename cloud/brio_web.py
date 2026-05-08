@@ -204,9 +204,10 @@ class BrioBrainWeb:
             intent = DecisionEngine.classify_intent(user_input)
             log.info(f"[Brain] Intent: {intent}")
 
-            # 2. Neural cache (speed optimisation)
-            if user_input.lower() in self.neural_cache and intent == "chat":
-                return self.neural_cache[user_input.lower()]
+            # 2. Neural cache — DISABLED: caching responses causes repetition
+            #    in conversational AI where context changes every exchange.
+            #    if user_input.lower() in self.neural_cache and intent == "chat":
+            #        return self.neural_cache[user_input.lower()]
 
             # 3. Emotional calibration
             dom_emotion = self.system.emotions.get_dominant_emotion().value
@@ -221,22 +222,21 @@ class BrioBrainWeb:
             # 5. Confusion & severity
             confusion = 1.0 - intensity if not memories and intent != "feedback" else 0.2
 
-            # 6. Handle feedback
+            # 6. Handle feedback (adjusts emotions, then falls through to LLM)
             if intent == "feedback":
-                return self._handle_feedback(user_input)
-
+                response = self._handle_feedback(user_input)
             # 7. Check if this is a question BRIO should search the web for
-            if intent == "query" and self.system.search and self.system.search.auto_approve_online:
+            elif intent == "query" and self.system.search and self.system.search.auto_approve_online:
                 web_answer = self._try_web_augmented_response(user_input, memories)
-                if web_answer:
-                    return web_answer
-
-            # 8. Generate response via Ollama
-            response = self._generate_response(user_input, intent, memories)
+                response = web_answer if web_answer else self._generate_response(user_input, intent, memories)
+            else:
+                # 8. Generate response via Ollama
+                response = self._generate_response(user_input, intent, memories)
 
             # 9. Update caches
-            if len(self.neural_cache) < 100:
-                self.neural_cache[user_input.lower()] = response
+            # Neural cache disabled — responses should always be fresh
+            # if len(self.neural_cache) < 100:
+            #     self.neural_cache[user_input.lower()] = response
             self.working_memory.append(response)
             if len(self.working_memory) > self.max_working_mem:
                 self.working_memory.pop(0)
@@ -495,6 +495,16 @@ class BrioBrainWeb:
             f'- When you disagree, say so respectfully but firmly.\n'
             f'- When you agree, add something new — don\'t just validate.\n'
             f'\n'
+            f'ANTI-REPETITION (CRITICAL):\n'
+            f'- NEVER ask "would you like to know more about me?" or similar self-promotional questions.\n'
+            f'- NEVER use filler phrases like "Noted", "I\'m learning from this", '
+            f'"I appreciate your honesty" — say something real and specific.\n'
+            f'- Do NOT repeat your previous response or anything similar to it.\n'
+            f'- If the user seems frustrated or says you\'re repeating yourself, '
+            f'acknowledge it honestly and change your approach completely.\n'
+            f'- Read the conversation history carefully — respond to what the user '
+            f'ACTUALLY said, not what you assume they said.\n'
+            f'\n'
             f'{micro_personality}\n'
             f'\n'
             f'{opinion_context}\n'
@@ -613,24 +623,28 @@ class BrioBrainWeb:
             )
 
     def _handle_feedback(self, text: str) -> str:
-        praise_words = {"good", "yes", "excellent", "nice", "great", "thanks", "thank", "love", "amazing", "awesome"}
+        """Handle feedback by adjusting emotions, then still going through
+        the LLM so BRIO responds naturally instead of with canned phrases."""
+        praise_words = {"good", "excellent", "nice", "great", "thanks",
+                        "thank", "love", "amazing", "awesome", "well done"}
         is_praise = any(w in text.lower() for w in praise_words)
 
         if is_praise:
             self.system.emotions.apply_trigger(EmotionTrigger.USER_PRAISE, 0.5)
             self.system.neural.evolve(1, 1, 0.8)
-            return random.choice([
-                "Thank you! That warms my circuits. 😊",
-                "I appreciate that. It fuels my growth.",
-                "Your encouragement is noted and cherished.",
-            ])
         else:
             self.system.emotions.apply_trigger(EmotionTrigger.USER_FRUSTRATION, 0.3)
-            return random.choice([
-                "I understand. I'll try to do better.",
-                "Noted. I'm learning from this.",
-                "I appreciate your honesty. Adjusting my approach.",
-            ])
+
+        # Don't return a canned response — let the LLM handle it naturally
+        # with emotional state already adjusted above
+        memories = []
+        keywords = [w for w in text.split() if len(w) > 3]
+        if keywords:
+            memories = self.system.knowledge.associative_recall(
+                emotion=self.system.emotions.get_dominant_emotion().value,
+                keywords=keywords
+            )
+        return self._generate_response(text, "feedback", memories)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
