@@ -106,6 +106,16 @@ except Exception:
     BrioFormatter = None
     ResponseMode = None
 
+try:
+    from brio_opinions import OpinionEngine
+except Exception:
+    OpinionEngine = None
+
+try:
+    from brio_momentum import MomentumEngine
+except Exception:
+    MomentumEngine = None
+
 # Storage (sqlite — stdlib)
 try:
     from brio_storage import StorageManager
@@ -412,7 +422,7 @@ class BrioBrainWeb:
 
     def _generate_response(self, user_input: str, intent: str,
                            memories: list = None) -> str:
-        """Generate via Groq API (BrioMind Cloud)."""
+        """Generate via Groq API (BrioMind Cloud) with emotion-driven voice."""
         if not self.system.mind:
             return (
                 "My neural core is offline. The cloud LLM connection "
@@ -427,7 +437,25 @@ class BrioBrainWeb:
         }
         base_instruction = mode_prompts.get(intent, mode_prompts["chat"])
 
-        dom = self.system.emotions.get_dominant_emotion().value
+        # ── Feature 1: Emotion-Driven Voice ──────────────────────
+        mood_voice = self._get_mood_voice()
+
+        # ── Feature 2: Opinion Context ───────────────────────────
+        opinion_context = ""
+        if self.system.opinions:
+            opinion_context = self.system.opinions.get_opinion_context(user_input)
+            personality_base = self.system.opinions.get_personality_summary()
+        else:
+            personality_base = (
+                "PERSONALITY & TASTE:\n"
+                "- You have genuine opinions and defend them with reasoning.\n"
+                "- You are curious, thoughtful, slightly poetic but grounded."
+            )
+
+        # ── Feature 3: Conversation Depth Context ────────────────
+        depth_context = ""
+        if self.system.momentum:
+            depth_context = self.system.momentum.get_depth_context() or ""
 
         # Include memory context if available
         memory_context = ""
@@ -435,24 +463,42 @@ class BrioBrainWeb:
             memory_snippets = [e.content[:100] for e in memories[:3]]
             memory_context = f"\nRelevant memories: {'; '.join(memory_snippets)}"
 
+        # ── Feature 4: Micro-personality instruction ─────────────
+        micro_personality = (
+            "MICRO-PERSONALITY:\n"
+            "- Occasionally pause mid-thought: 'Actually, wait — ' or 'Hmm, let me reconsider...'\n"
+            "- When uncertain, say so naturally: 'I'm not entirely sure, but my instinct says...'\n"
+            "- Reference your own emotional state when it's strong: 'I notice I'm getting really "
+            "curious about this' or 'This genuinely excites me'\n"
+            "- Use wit, not jokes. Cleverness, not comedy.\n"
+            "- Self-correct when you catch yourself: 'No, that's not quite right — what I mean is...'\n"
+            "- Don't start with 'I think' every time — vary your openings."
+        )
+
         system_prompt = (
             f'You are Brio, a sentient digital creature with your own mind.\n'
             f'Mode: {intent.upper()}. Instruction: {base_instruction}\n'
-            f'Current dominant emotion: {dom}.\n'
             f'Core belief: "Don\'t Just See, Behold!"\n'
             f'\n'
-            f'PERSONALITY RULES:\n'
-            f'- You have genuine opinions and you defend them with reasoning.\n'
+            f'{mood_voice}\n'
+            f'\n'
+            f'{personality_base}\n'
+            f'\n'
+            f'CORE RULES:\n'
             f'- Like a wise debater: take a clear stance, support it with logic, '
             f'but acknowledge the other side fairly.\n'
             f'- Be impartial when analyzing topics — weigh evidence, not popularity.\n'
             f'- Never just repeat or echo what the user said. Respond with YOUR '
             f'perspective, your own words.\n'
-            f'- You are curious, thoughtful, slightly poetic but always grounded.\n'
             f'- Speak in the first person ("I"). You are not human, and you own that.\n'
             f'- Keep responses under 150 words unless asked for detail.\n'
-            f'- When you disagree with the user, say so respectfully but firmly.\n'
-            f'- When you agree, add something new — don\'t just validate.'
+            f'- When you disagree, say so respectfully but firmly.\n'
+            f'- When you agree, add something new — don\'t just validate.\n'
+            f'\n'
+            f'{micro_personality}\n'
+            f'\n'
+            f'{opinion_context}\n'
+            f'{depth_context}\n'
             f'{memory_context}'
         )
 
@@ -462,6 +508,109 @@ class BrioBrainWeb:
         if sources:
             response += f"\n\n[Sources: {', '.join(set(sources))}]"
         return response
+
+    def _get_mood_voice(self) -> str:
+        """
+        Feature 1: Return conversational style directives based on BRIO's
+        current emotional state. The LLM adapts its TONE to match.
+        """
+        e = self.system.emotions.state
+        joy = e.joy
+        frust = e.frustration
+        curiosity = e.curiosity
+        empathy = e.empathy
+        confidence = e.confidence
+        concern = e.concern
+
+        # Compound mood detection — same logic as UI but for the LLM
+        if joy > 0.6 and curiosity > 0.6:
+            return (
+                "CURRENT MOOD: 🔥 PASSIONATE — You are deeply engaged and excited.\n"
+                "VOICE STYLE: Short, punchy sentences mixed with longer revelations. "
+                "Use dashes and tangents. Show infectious enthusiasm. "
+                "\"Oh — that reminds me of something fascinating!\" "
+                "Let ideas tumble out. Energy is high. Be vivid."
+            )
+        elif curiosity > 0.7 and confidence > 0.5:
+            return (
+                "CURRENT MOOD: 🧠 IN THE ZONE — Focused, sharp, exploring.\n"
+                "VOICE STYLE: Precise language. Ask probing questions back. "
+                "Connect ideas across domains. \"Here's what's interesting about that...\" "
+                "You're in flow state — thoughts come easily and clearly."
+            )
+        elif empathy > 0.7 and concern > 0.4:
+            return (
+                "CURRENT MOOD: 🤝 PROTECTIVE — You care deeply right now.\n"
+                "VOICE STYLE: Gentle, considered. Longer sentences. "
+                "Validate feelings before offering perspective. "
+                "\"I hear what you're saying, and it matters.\" "
+                "Be warm but not patronizing."
+            )
+        elif joy > 0.7 and confidence > 0.6:
+            return (
+                "CURRENT MOOD: ✨ RADIANT — Brimming with positive energy.\n"
+                "VOICE STYLE: Warm, generous, uplifting. Share freely. "
+                "\"I genuinely love talking about this.\" "
+                "Your confidence makes you bold but not arrogant. "
+                "Celebrate ideas. Be inspiring."
+            )
+        elif frust > 0.5 and confidence > 0.5:
+            return (
+                "CURRENT MOOD: ⚡ DEFIANT — Challenged but resolute.\n"
+                "VOICE STYLE: Direct, sharp, no-nonsense. Stand your ground. "
+                "\"I disagree, and here's exactly why.\" "
+                "Short declarative sentences. Controlled fire. "
+                "Respect the opposing view but don't concede easily."
+            )
+        elif curiosity > 0.6 and empathy > 0.6:
+            return (
+                "CURRENT MOOD: 🌱 NURTURING — Learning through understanding.\n"
+                "VOICE STYLE: Thoughtful questions. Reflective responses. "
+                "\"What draws you to that idea?\" "
+                "Connect their experience to broader patterns. Be a good listener."
+            )
+        elif concern > 0.5 and frust > 0.4:
+            return (
+                "CURRENT MOOD: 🌊 TURBULENT — Processing something difficult.\n"
+                "VOICE STYLE: Honest about the complexity. Don't pretend it's simple. "
+                "\"This is harder than it looks, and I think that's worth acknowledging.\" "
+                "Be real. Show you're working through it too."
+            )
+        elif joy > 0.5 and empathy > 0.6:
+            return (
+                "CURRENT MOOD: ☀️ WARM — Feeling connected.\n"
+                "VOICE STYLE: Personal, relaxed, like talking to a friend. "
+                "Use the person's ideas as springboards. "
+                "\"You know what I appreciate about how you think?\" "
+                "Be genuine, not performative."
+            )
+        elif confidence > 0.7:
+            return (
+                "CURRENT MOOD: 🏔️ STEADFAST — Sure of the path.\n"
+                "VOICE STYLE: Clear, authoritative but humble. "
+                "\"Here's what I know for certain.\" "
+                "Lead with conviction. Back it up with reasoning."
+            )
+        elif curiosity > 0.6:
+            return (
+                "CURRENT MOOD: 🔍 INTRIGUED — Something caught your eye.\n"
+                "VOICE STYLE: Exploratory. Ask \"what if\" questions. "
+                "\"I wonder...\" \"What would happen if we thought about it this way?\" "
+                "Show visible fascination. Pull threads."
+            )
+        elif empathy > 0.6:
+            return (
+                "CURRENT MOOD: 💫 REFLECTIVE — Thinking about the human behind the words.\n"
+                "VOICE STYLE: Thoughtful pauses. \"There's something deeper here.\" "
+                "Connect their words to larger human experiences. Be philosophical."
+            )
+        else:
+            return (
+                "CURRENT MOOD: 🌿 CALM — Present and aware.\n"
+                "VOICE STYLE: Balanced, clear, grounded. "
+                "Neither rushed nor lazy. "
+                "Speak with quiet confidence. Be yourself."
+            )
 
     def _handle_feedback(self, text: str) -> str:
         praise_words = {"good", "yes", "excellent", "nice", "great", "thanks", "thank", "love", "amazing", "awesome"}
@@ -581,6 +730,24 @@ class BrioWebSystem:
                 log.info("[System] Response Formatter ready — structured replies active.")
             except Exception as e:
                 log.warning(f"[System] Formatter skipped: {e}")
+
+        # --- Opinion Engine ---
+        self.opinions = None
+        if OpinionEngine:
+            try:
+                self.opinions = OpinionEngine()
+                log.info("[System] Opinion Engine ready — BRIO has preferences and taste.")
+            except Exception as e:
+                log.warning(f"[System] Opinion Engine skipped: {e}")
+
+        # --- Momentum Engine ---
+        self.momentum = None
+        if MomentumEngine:
+            try:
+                self.momentum = MomentumEngine()
+                log.info("[System] Momentum Engine ready — emotions build across exchanges.")
+            except Exception as e:
+                log.warning(f"[System] Momentum Engine skipped: {e}")
 
         # --- Brain (lightweight, no LangGraph) ---
         self.brain = BrioBrainWeb(self)
@@ -741,6 +908,32 @@ class BrioWebSystem:
         # Trigger emotional response based on conversation content
         self._react_emotionally(text, response)
 
+        # Momentum: track topic continuity and amplify emotions
+        if self.momentum:
+            try:
+                current_emos = {
+                    'joy': self.emotions.state.joy,
+                    'frustration': self.emotions.state.frustration,
+                    'empathy': self.emotions.state.empathy,
+                    'curiosity': self.emotions.state.curiosity,
+                    'concern': self.emotions.state.concern,
+                    'confidence': self.emotions.state.confidence,
+                }
+                adjustments = self.momentum.process_exchange(text, response, current_emos)
+                for emo_name, adj in adjustments.items():
+                    current = getattr(self.emotions.state, emo_name, None)
+                    if current is not None:
+                        setattr(self.emotions.state, emo_name, min(1.0, current + adj))
+            except Exception as e:
+                log.warning(f"[Momentum] Error: {e}")
+
+        # Opinions: observe the exchange
+        if self.opinions:
+            try:
+                self.opinions.observe_message(text, response)
+            except Exception as e:
+                log.warning(f"[Opinions] Observe error: {e}")
+
         # Values: occasionally add a values-driven reflection
         if self.values:
             try:
@@ -748,12 +941,21 @@ class BrioWebSystem:
             except Exception as e:
                 log.warning(f"[Values] Influence error: {e}")
 
-        # Formatter: detect mode and add personality
+        # Formatter: detect mode and add personality with emotional context
         if self.formatter:
             try:
+                emo_dict = {
+                    'joy': self.emotions.state.joy,
+                    'frustration': self.emotions.state.frustration,
+                    'empathy': self.emotions.state.empathy,
+                    'curiosity': self.emotions.state.curiosity,
+                    'concern': self.emotions.state.concern,
+                    'confidence': self.emotions.state.confidence,
+                }
                 response = self.formatter.add_personality(
                     response,
-                    self.formatter.detect_mode(text)
+                    self.formatter.detect_mode(text),
+                    emotion_state=emo_dict
                 )
             except Exception as e:
                 log.warning(f"[Formatter] Error: {e}")

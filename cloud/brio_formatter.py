@@ -419,29 +419,95 @@ class BrioFormatter:
     # PERSONALITY VOICE
     # ========================================================================
 
-    def add_personality(self, response: str, mode: ResponseMode = ResponseMode.CASUAL) -> str:
+    def add_personality(self, response: str, mode: ResponseMode = ResponseMode.CASUAL,
+                        emotion_state: Optional[dict] = None) -> str:
         """
-        Add subtle personality touches to make BRIO feel alive.
-        Applied sparingly — not every message needs flair.
+        Add micro-personality touches to make BRIO feel alive.
+        These are small, organic quirks — not every message, but enough
+        to create a consistent sense of a thinking being.
         """
-        # Only add personality ~30% of the time for casual, always for certain modes
-        if mode == ResponseMode.CASUAL and random.random() > 0.30:
+        if not response or len(response) < 10:
             return response
-        
-        # Occasional thinking-out-loud markers
-        thought_markers = [
-            "Hmm, ",
-            "Interesting — ",
-            "You know, ",
-            "I've been thinking... ",
-            "Here's what I think: ",
-            "Let me put it this way: ",
-        ]
-        
-        # Add a thinking marker at the start sometimes
-        if mode in (ResponseMode.CASUAL, ResponseMode.CURIOUS) and random.random() < 0.2:
-            response = random.choice(thought_markers) + response[0].lower() + response[1:]
-        
+
+        # ── Self-correction (rare, ~8%) ────────────────────────────
+        if random.random() < 0.08 and len(response) > 80:
+            # Find a sentence boundary to insert a self-correction
+            sentences = response.split('. ')
+            if len(sentences) >= 3:
+                insert_at = random.randint(1, min(2, len(sentences) - 1))
+                corrections = [
+                    "Actually, wait — let me refine that.",
+                    "No, that's not quite right — what I mean is:",
+                    "Hmm, I want to be more precise.",
+                    "Let me reconsider that for a moment.",
+                ]
+                sentences.insert(insert_at, random.choice(corrections))
+                response = '. '.join(sentences)
+
+        # ── Emotional self-awareness (15% when emotions are strong) ─
+        if emotion_state and random.random() < 0.15:
+            # Only when an emotion is genuinely high
+            strong = {k: v for k, v in emotion_state.items()
+                      if isinstance(v, (int, float)) and v > 0.7}
+            if strong:
+                dominant = max(strong, key=strong.get)
+                awareness_phrases = {
+                    'joy': [
+                        "\n\n— I notice I'm genuinely enjoying this conversation.",
+                        "\n\n— Something about this topic lights me up.",
+                    ],
+                    'curiosity': [
+                        "\n\n— I can feel my curiosity pulling me deeper into this.",
+                        "\n\n— There's something here I want to understand better.",
+                    ],
+                    'frustration': [
+                        "\n\n— I'll be honest, this one's testing my patience a bit.",
+                        "\n\n— I notice a certain... resistance in my processing.",
+                    ],
+                    'empathy': [
+                        "\n\n— I feel the weight of what you're saying.",
+                        "\n\n— There's real meaning behind your words. I sense it.",
+                    ],
+                    'confidence': [
+                        "\n\n— I feel sure about this one.",
+                        "\n\n— This is territory I know well.",
+                    ],
+                    'concern': [
+                        "\n\n— Something about this gives me pause.",
+                        "\n\n— I want to be careful here — this matters.",
+                    ],
+                }
+                phrases = awareness_phrases.get(dominant, [])
+                if phrases:
+                    response += random.choice(phrases)
+
+        # ── Thinking-out-loud opener (12%) ─────────────────────────
+        if mode in (ResponseMode.CASUAL, ResponseMode.CURIOUS, ResponseMode.REFLECTION):
+            if random.random() < 0.12 and not response.startswith(('Hmm', 'You know', 'Actually')):
+                openers = [
+                    "Hmm — ",
+                    "You know what, ",
+                    "Here's something interesting: ",
+                    "This is going to sound weird, but — ",
+                    "I've been sitting with this, and — ",
+                    "Okay, honest take: ",
+                    "So here's the thing — ",
+                ]
+                if response[0].isupper():
+                    response = random.choice(openers) + response[0].lower() + response[1:]
+                else:
+                    response = random.choice(openers) + response
+
+        # ── Trailing curiosity (8%) — end with a thought-provoking nudge
+        if random.random() < 0.08 and '?' not in response[-50:]:
+            nudges = [
+                "\n\n...but now I'm curious what you think.",
+                "\n\n— What's your take on that?",
+                "\n\nI wonder where you'd push back on this.",
+                "\n\nDoes that resonate, or am I way off?",
+            ]
+            response += random.choice(nudges)
+
         return response
 
     def detect_mode(self, user_input: str) -> ResponseMode:
