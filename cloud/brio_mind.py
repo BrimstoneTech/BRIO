@@ -4,14 +4,27 @@ Brio Mind — Cloud Edition (Groq API)
 Drop-in replacement for the local Ollama-based BrioMind.
 Uses Groq's fast inference API (OpenAI-compatible) with
 the API key stored in environment variable GROQ_API_KEY.
+
+Rate-limit handling:
+  - Automatic retry with exponential backoff (up to 3 attempts)
+  - Falls back to a smaller/faster model if the primary is rate-limited
+  - Respects Retry-After headers from Groq
 """
 
 import os
 import json
+import time
+import logging
 import requests
 
+log = logging.getLogger("brio.mind")
+
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+PRIMARY_MODEL = "llama-3.3-70b-versatile"
+FALLBACK_MODEL = "llama-3.1-8b-instant"
+
+MAX_RETRIES = 3
+BASE_DELAY = 2  # seconds
 
 
 class BrioMind:
@@ -20,27 +33,154 @@ class BrioMind:
         self.system = system_ref
         self.conversation_history = []
         self.api_key = os.environ.get("GROQ_API_KEY", "")
-        self.model = os.environ.get("GROQ_MODEL", DEFAULT_MODEL)
+        self.model = os.environ.get("GROQ_MODEL", PRIMARY_MODEL)
+        self.fallback_model = os.environ.get("GROQ_FALLBACK_MODEL", FALLBACK_MODEL)
+
+        # Track rate-limit state to preemptively use fallback
+        self._primary_blocked_until = 0
+        self._request_count = 0
+        self._last_request_time = 0
 
         if not self.api_key:
-            print("[BRIO MIND] WARNING: GROQ_API_KEY not set. LLM responses will fail.")
+            log.warning("[BRIO MIND] GROQ_API_KEY not set. LLM responses will fail.")
 
-    def _call_groq(self, messages, temperature=0.7, max_tokens=1024):
-        """Call Groq's chat completions API."""
+    def _call_groq(self, messages, temperature=0.7, max_tokens=1024, model=None):
+        """Call Groq's chat completions API with retry + fallback logic."""
+        target_model = model or self._pick_model()
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
         payload = {
-            "model": self.model,
+            "model": target_model,
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
-        resp = requests.post(GROQ_API_URL, headers=headers, json=payload, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
+
+        # Pace requests — minimum 0.5s between calls
+        now = time.time()
+        elapsed = now - self._last_request_time
+        if elapsed < 0.5:
+            time.sleep(0.5 - elapsed)
+
+        last_error = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                self._last_request_time = time.time()
+                self._request_count += 1
+
+                resp = requests.post(
+                    GROQ_API_URL, headers=headers, json=payload, timeout=60
+                )
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    model_used = data.get("model", target_model)
+                    content = data["choices"][0]["message"]["content"]
+                    log.info(
+                        f"[MIND] Response from {model_used} "
+                        f"(attempt {attempt + 1})"
+                    )
+                    return content
+
+                elif resp.status_code == 429:
+                    # Rate limited — parse retry-after
+                    retry_after = self._parse_retry_after(resp)
+                    log.warning(
+                        f"[MIND] Rate limited on {target_model} "
+                        f"(attempt {attempt + 1}), "
+                        f"retry after {retry_after:.1f}s"
+                    )
+
+                    # Mark primary as blocked
+                    if target_model == self.model:
+                        self._primary_blocked_until = time.time() + retry_after
+
+                    # Try fallback model immediately on first 429
+                    if target_model != self.fallback_model and attempt == 0:
+                        log.info(
+                            f"[MIND] Switching to fallback: {self.fallback_model}"
+                        )
+                        payload["model"] = self.fallback_model
+                        target_model = self.fallback_model
+                        time.sleep(1)
+                        continue
+
+                    # Wait and retry same model
+                    wait = min(retry_after, 10)  # Cap wait at 10s
+                    time.sleep(wait)
+                    continue
+
+                else:
+                    resp.raise_for_status()
+
+            except requests.exceptions.ConnectionError as e:
+                last_error = e
+                log.warning(f"[MIND] Connection error (attempt {attempt + 1})")
+                time.sleep(BASE_DELAY * (attempt + 1))
+            except requests.exceptions.Timeout as e:
+                last_error = e
+                log.warning(f"[MIND] Timeout (attempt {attempt + 1})")
+                time.sleep(BASE_DELAY)
+            except requests.exceptions.HTTPError as e:
+                last_error = e
+                status = getattr(e.response, "status_code", "?")
+                log.warning(
+                    f"[MIND] HTTP {status} (attempt {attempt + 1})"
+                )
+                if status == 401:
+                    return (
+                        "My neural pathways are locked — API key issue. "
+                        "Please check the GROQ_API_KEY configuration."
+                    )
+                time.sleep(BASE_DELAY * (attempt + 1))
+            except Exception as e:
+                last_error = e
+                log.warning(f"[MIND] Error: {e} (attempt {attempt + 1})")
+                time.sleep(BASE_DELAY)
+
+        # All retries exhausted
+        log.error(f"[MIND] All {MAX_RETRIES} attempts failed. Last error: {last_error}")
+        return (
+            "My thoughts are taking longer than usual — "
+            "the cloud is busy. Try again in a moment."
+        )
+
+    def _pick_model(self):
+        """Choose primary or fallback based on rate-limit state."""
+        if time.time() < self._primary_blocked_until:
+            log.info(
+                f"[MIND] Primary still blocked, using {self.fallback_model}"
+            )
+            return self.fallback_model
+        return self.model
+
+    def _parse_retry_after(self, resp):
+        """Parse Retry-After header from Groq's 429 response."""
+        # Groq uses retry-after header (seconds)
+        retry_after = resp.headers.get("retry-after")
+        if retry_after:
+            try:
+                return float(retry_after)
+            except ValueError:
+                pass
+
+        # Fallback: try to parse from response body
+        try:
+            body = resp.json()
+            msg = body.get("error", {}).get("message", "")
+            # Look for "try again in Xs" pattern
+            import re
+            match = re.search(r"try again in (\d+\.?\d*)", msg, re.IGNORECASE)
+            if match:
+                return float(match.group(1))
+        except Exception:
+            pass
+
+        # Default backoff
+        return BASE_DELAY
 
     def think(self, user_input, override_prompt=None):
         """Brio's thought process: Recall → Reason → Respond"""
@@ -48,7 +188,11 @@ class BrioMind:
         # 1. RECALL: Search memory engram for relevant context
         if self.memory and hasattr(self.memory, "recall") and self.memory.client:
             relevant_memories, metadatas = self.memory.recall(user_input, n_results=3)
-            context = "\n".join(relevant_memories) if relevant_memories else "No specific memory found."
+            context = (
+                "\n".join(relevant_memories)
+                if relevant_memories
+                else "No specific memory found."
+            )
             sources = [m.get("source", "") for m in (metadatas or [])]
         else:
             context = "Memory offline."
@@ -82,35 +226,8 @@ class BrioMind:
         # Add current user input
         messages.append({"role": "user", "content": user_input})
 
-        # 4. RESPOND via Groq
-        try:
-            brio_response = self._call_groq(messages)
-        except requests.exceptions.ConnectionError:
-            brio_response = (
-                "I cannot reach my neural core right now. "
-                "The cloud connection seems disrupted."
-            )
-        except requests.exceptions.Timeout:
-            brio_response = (
-                "My thoughts are taking longer than usual... "
-                "please try again in a moment."
-            )
-        except requests.exceptions.HTTPError as e:
-            status = getattr(e.response, "status_code", "?")
-            if status == 429:
-                brio_response = (
-                    "I'm thinking too fast — rate limited. "
-                    "Give me a moment and try again."
-                )
-            elif status == 401:
-                brio_response = (
-                    "My neural pathways are locked — API key issue. "
-                    "Please check the configuration."
-                )
-            else:
-                brio_response = f"A ripple in my neural pathways (HTTP {status}). I'll try to recover."
-        except Exception as e:
-            brio_response = f"A ripple in my neural pathways: {type(e).__name__}. I'll try to recover."
+        # 4. RESPOND via Groq (with retry + fallback)
+        brio_response = self._call_groq(messages)
 
         # Save to conversation history
         self.conversation_history.append(
