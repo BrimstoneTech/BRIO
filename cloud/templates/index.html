@@ -441,13 +441,13 @@
 <aside class="sidebar">
     <div class="sidebar-header">
         <h1>BRIO</h1>
-        <span class="version">v4.5 web</span>
+        <span class="version">v5.0 cloud</span>
     </div>
 
-    <!-- Ollama Status -->
+    <!-- LLM Status -->
     <div class="status-indicator" id="ollamaStatus">
         <span class="status-dot offline" id="statusDot"></span>
-        <span id="statusText">Checking Ollama…</span>
+        <span id="statusText">Checking Groq…</span>
     </div>
 
     <!-- Dominant Emotion -->
@@ -538,6 +538,57 @@
         <div class="section-title">Unlocked Ambitions</div>
         <div id="ambitionList" style="margin-top: 6px;">
             <span style="font-size: 0.75rem; color: var(--text-muted);">None yet — keep interacting</span>
+        </div>
+    </div>
+
+    <!-- Evolution -->
+    <div id="evolutionSection" style="display: none;">
+        <div class="section-title">🧬 Evolution</div>
+        <div style="margin-top: 6px;">
+            <div class="stat-row">
+                <span class="stat-label">Generation</span>
+                <span class="stat-value" id="evoGenName" style="color: var(--gold);">Spark</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Milestones</span>
+                <span class="stat-value" id="evoProgress">0 / 70</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="evoBar" style="width: 0%; background: linear-gradient(90deg, var(--curiosity), var(--accent));"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lifecycle -->
+    <div id="lifecycleSection" style="display: none;">
+        <div class="section-title">🔥 Lifecycle</div>
+        <div style="margin-top: 6px;">
+            <div class="stat-row">
+                <span class="stat-label">Life Stage</span>
+                <span class="stat-value" id="lifeName" style="color: var(--ember);">Spark</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Interactions</span>
+                <span class="stat-value" id="lifeInteractions">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Life Remaining</span>
+                <span class="stat-value" id="lifePercent">100%</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="lifeBar" style="width: 0%; background: linear-gradient(90deg, #22c55e, var(--flame), #ef4444);"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Values -->
+    <div id="valuesSection" style="display: none;">
+        <div class="section-title">💓 Values</div>
+        <div style="margin-top: 6px;">
+            <div class="emotion-chip" style="border-color: var(--ember)33;">
+                <span class="dot" style="background: var(--ember);"></span>
+                <span style="font-size: 0.72rem; color: var(--text-dim);">Active — Life is Precious</span>
+            </div>
         </div>
     </div>
 
@@ -744,6 +795,34 @@
             ).join('');
         }
 
+        // Evolution
+        if (state.evolution) {
+            $('evolutionSection').style.display = 'block';
+            $('evoGenName').textContent = state.evolution.generation_name || 'Spark';
+            $('evoProgress').textContent = `${state.evolution.completed || 0} / ${state.evolution.total || 70}`;
+            $('evoBar').style.width = (state.evolution.progress_pct || 0) + '%';
+        }
+
+        // Lifecycle
+        if (state.lifecycle) {
+            $('lifecycleSection').style.display = 'block';
+            $('lifeName').textContent = state.lifecycle.name || 'Spark';
+            $('lifeInteractions').textContent = state.lifecycle.interactions || 0;
+            const lifePct = state.lifecycle.life_pct || 0;
+            $('lifePercent').textContent = Math.max(0, (100 - lifePct)).toFixed(0) + '%';
+            $('lifeBar').style.width = lifePct + '%';
+            if (state.lifecycle.is_dying) {
+                $('lifeName').style.color = '#ef4444';
+            } else {
+                $('lifeName').style.color = 'var(--ember)';
+            }
+        }
+
+        // Values
+        if (state.values_active) {
+            $('valuesSection').style.display = 'block';
+        }
+
         // Uptime
         if (state.uptime) {
             const mins = Math.floor(state.uptime / 60);
@@ -804,31 +883,41 @@
         }
     });
 
-    // ─── OLLAMA CHECK ──────────────────────────────────────
-    async function checkOllama() {
+    // ─── LLM STATUS CHECK ────────────────────────────────────
+    async function checkLLM() {
         try {
             const res = await fetch('/api/ollama');
             const data = await res.json();
             const dot  = $('statusDot');
             const txt  = $('statusText');
 
-            if (data.running && data.has_target_model) {
-                dot.className = 'status-dot online';
-                txt.textContent = `Ollama · ${data.target_model}`;
-            } else if (data.running) {
-                dot.className = 'status-dot warning';
-                txt.textContent = `Ollama up · model missing`;
+            if (data.cloud_mode) {
+                if (data.running && data.has_target_model) {
+                    dot.className = 'status-dot online';
+                    txt.textContent = `Groq · ${data.target_model}`;
+                } else {
+                    dot.className = 'status-dot offline';
+                    txt.textContent = 'Groq · API key missing';
+                }
             } else {
-                dot.className = 'status-dot offline';
-                txt.textContent = 'Ollama offline';
+                if (data.running && data.has_target_model) {
+                    dot.className = 'status-dot online';
+                    txt.textContent = `Ollama · ${data.target_model}`;
+                } else if (data.running) {
+                    dot.className = 'status-dot warning';
+                    txt.textContent = `Ollama up · model missing`;
+                } else {
+                    dot.className = 'status-dot offline';
+                    txt.textContent = 'Ollama offline';
+                }
             }
         } catch {
             $('statusDot').className = 'status-dot offline';
             $('statusText').textContent = 'Connection error';
         }
     }
-    checkOllama();
-    setInterval(checkOllama, 15000);
+    checkLLM();
+    setInterval(checkLLM, 15000);
 
     // Focus input on load
     chatInput.focus();
