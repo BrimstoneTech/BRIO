@@ -594,12 +594,13 @@ class BrioBrainWeb:
                 "\"You know what I appreciate about how you think?\" "
                 "Be genuine, not performative."
             )
-        elif confidence > 0.7:
+        elif confidence > 0.75:
             return (
                 "CURRENT MOOD: 🏔️ STEADFAST — Sure of the path.\n"
                 "VOICE STYLE: Clear, authoritative but humble. "
                 "\"Here's what I know for certain.\" "
-                "Lead with conviction. Back it up with reasoning."
+                "Lead with conviction. Back it up with reasoning. "
+                "But show self-awareness — you don't know everything."
             )
         elif curiosity > 0.6:
             return (

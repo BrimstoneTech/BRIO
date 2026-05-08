@@ -721,13 +721,19 @@
         const empathy = e.empathy || 0.5;
         const confidence = e.confidence || 0.5;
 
-        // Dynamic parameters
-        orbSpeed += ((1 + curiosity * 3 + joy * 1.5) - orbSpeed) * 0.05;
-        orbShake += ((frust > 0.4 ? frust * 4 : 0) - orbShake) * 0.08;
-        orbGlow += ((joy > 0.5 ? joy * 0.4 : 0.05) - orbGlow) * 0.05;
-        orbBreath += ((0.8 + empathy * 0.4) - orbBreath) * 0.03;
+        // Detect reduced-motion preference (epilepsy / vestibular safety)
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        orbTime += 0.02 * orbSpeed;
+        // Dynamic parameters — capped for visual safety
+        // Max speed: 2.5x (was 5.5x), slower transitions
+        const targetSpeed = reducedMotion ? 0.6 : Math.min(2.5, 1 + curiosity * 1.2 + joy * 0.6);
+        orbSpeed += (targetSpeed - orbSpeed) * 0.03;
+        // Shake: gentler, capped, disabled in reduced-motion
+        orbShake += (((frust > 0.5 && !reducedMotion) ? frust * 2 : 0) - orbShake) * 0.05;
+        orbGlow += ((joy > 0.5 ? joy * 0.3 : 0.05) - orbGlow) * 0.04;
+        orbBreath += ((0.8 + empathy * 0.3) - orbBreath) * 0.02;
+
+        orbTime += (reducedMotion ? 0.008 : 0.015) * orbSpeed;
 
         // Position with frustration shake
         const shakeX = orbShake * (Math.random() - 0.5) * 2;
@@ -740,10 +746,10 @@
         const baseR = Math.min(w, h) * 0.16 * breathScale;
 
         // ── Outer aura (more rings when passionate) ───────────
-        const ringCount = Math.floor(4 + orbIntensity * 4);
+        const ringCount = reducedMotion ? 2 : Math.floor(3 + orbIntensity * 3);
         for (let i = ringCount; i >= 0; i--) {
-            const pulseSpeed = orbSpeed * (1 + orbIntensity * 2);
-            const pulseAmp = 5 + orbIntensity * 18;
+            const pulseSpeed = orbSpeed * (1 + orbIntensity * 0.8);
+            const pulseAmp = reducedMotion ? 2 : (3 + orbIntensity * 8);
             const phase = orbTime * pulseSpeed + i * 0.3;
             const r = baseR + 20 + i * 14 + Math.sin(phase) * pulseAmp;
             const alpha = (0.03 + orbGlow * 0.08) * (1 - i / (ringCount + 1));
@@ -754,9 +760,9 @@
             ctx.fill();
         }
 
-        // ── Joy sparkles ──────────────────────────────────────
-        if (joy > 0.5) {
-            const sparkleCount = Math.floor((joy - 0.5) * 30);
+        // ── Joy sparkles (capped, disabled in reduced-motion) ──
+        if (joy > 0.5 && !reducedMotion) {
+            const sparkleCount = Math.min(8, Math.floor((joy - 0.5) * 16));
             for (let i = 0; i < sparkleCount; i++) {
                 const angle = orbTime * 0.7 + i * 2.39996;
                 const dist = baseR + 25 + Math.sin(orbTime * 3 + i * 1.7) * 30;
@@ -784,10 +790,10 @@
         ctx.fillStyle = grad;
         ctx.fill();
 
-        // ── Inner pulse rings (more when confident) ───────────
-        const pulseRings = confidence > 0.6 ? 3 : 1;
+        // ── Inner pulse rings (more when confident, gentler) ──
+        const pulseRings = reducedMotion ? 1 : (confidence > 0.6 ? 2 : 1);
         for (let p = 0; p < pulseRings; p++) {
-            const innerPulse = baseR + 4 + p * 6 + Math.sin(orbTime * (2 + p * 0.5)) * (3 + orbIntensity * 4);
+            const innerPulse = baseR + 4 + p * 6 + Math.sin(orbTime * (1.2 + p * 0.3)) * (2 + orbIntensity * 2);
             ctx.beginPath();
             ctx.arc(cx, cy, innerPulse, 0, Math.PI * 2);
             ctx.strokeStyle = `rgba(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)}, ${(0.2 + orbIntensity * 0.3) / (p + 1)})`;
@@ -795,9 +801,9 @@
             ctx.stroke();
         }
 
-        // ── Floating particles (count & speed based on mood) ──
-        const particleCount = Math.floor(8 + curiosity * 12 + joy * 6);
-        const particleSpeed = 0.3 + curiosity * 0.5;
+        // ── Floating particles (count & speed based on mood, capped) ──
+        const particleCount = reducedMotion ? 4 : Math.min(14, Math.floor(6 + curiosity * 5 + joy * 3));
+        const particleSpeed = reducedMotion ? 0.15 : (0.2 + curiosity * 0.3);
         for (let i = 0; i < particleCount; i++) {
             const angle = orbTime * particleSpeed + i * (Math.PI * 2 / particleCount);
             const orbitVar = Math.sin(orbTime * 1.2 + i * 0.9) * (10 + orbIntensity * 15);
@@ -814,8 +820,8 @@
         }
 
         // ── Frustration: dark tendrils when frustrated ────────
-        if (frust > 0.4) {
-            const tendrilCount = Math.floor((frust - 0.4) * 10);
+        if (frust > 0.4 && !reducedMotion) {
+            const tendrilCount = Math.min(4, Math.floor((frust - 0.4) * 6));
             for (let i = 0; i < tendrilCount; i++) {
                 const angle = orbTime * 0.8 + i * 1.256;
                 const len = baseR + 15 + frust * 40;

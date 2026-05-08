@@ -64,24 +64,28 @@ class EmotionalState:
     
     # Internal vector storage: 0=Joy, 1=Frus, 2=Emp, 3=Cur, 4=Conc, 5=Conf
     # We default initialization to the baseline to ensure stability
-    _vector: List[float] = field(default_factory=lambda: [0.5, 0.2, 0.7, 0.6, 0.3, 0.6])
+    # Confidence starts moderate (0.35) — BRIO earns it through good interactions
+    _vector: List[float] = field(default_factory=lambda: [0.5, 0.2, 0.7, 0.6, 0.3, 0.35])
     
     timestamp: datetime = field(default_factory=datetime.now)
     dominant_emotion: EmotionType = EmotionType.EMPATHY
 
     # Configuration Constants (The DNA of the system)
     # Target Baseline: Contented, Curious, and Confident
-    BASELINE = [0.5, 0.1, 0.7, 0.7, 0.2, 0.7]
+    # BASELINE: what emotions gravitate toward at rest
+    # Confidence lowered from 0.7 → 0.4 so BRIO doesn't sound overconfident
+    BASELINE = [0.5, 0.1, 0.7, 0.7, 0.2, 0.4]
     # DECAY: Slower decay = emotions linger and build momentum
-    DECAY_RATES = [0.04, 0.06, 0.03, 0.035, 0.05, 0.03]
+    # Confidence decay increased so it doesn't stay high indefinitely
+    DECAY_RATES = [0.04, 0.06, 0.03, 0.035, 0.05, 0.06]
     
     # Interaction Matrix A — emotions feed into each other for compound states
     INTERACTIONS = {
         1: [(0, -0.08), (5, -0.12)],  # Frustration damps Joy & Confidence
-        4: [(0, -0.1), (3, -0.06)],   # Concern damps Joy & Curiosity
+        4: [(0, -0.1), (3, -0.06), (5, -0.05)],  # Concern damps Joy, Curiosity & Confidence
         5: [(1, -0.1)],               # Confidence resists Frustration
-        0: [(5, 0.08), (2, 0.04)],    # Joy boosts Confidence & Empathy
-        3: [(0, 0.06), (5, 0.04)],    # Curiosity feeds Joy & Confidence
+        0: [(5, 0.04), (2, 0.04)],    # Joy boosts Confidence (halved) & Empathy
+        3: [(0, 0.06), (5, 0.02)],    # Curiosity feeds Joy & Confidence (halved)
         2: [(4, 0.05), (0, 0.03)],    # Empathy raises Concern awareness & gentle Joy
     }
 
@@ -325,7 +329,7 @@ class EmotionEngine:
             self.state.empathy = float(state_dict.get("empathy", 0.7))
             self.state.curiosity = float(state_dict.get("curiosity", 0.6))
             self.state.concern = float(state_dict.get("concern", 0.3))
-            self.state.confidence = float(state_dict.get("confidence", 0.6))
+            self.state.confidence = float(state_dict.get("confidence", 0.35))
         except (ValueError, TypeError):
             self.state = EmotionalState()
             
