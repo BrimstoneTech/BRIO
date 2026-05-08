@@ -72,15 +72,17 @@ class EmotionalState:
     # Configuration Constants (The DNA of the system)
     # Target Baseline: Contented, Curious, and Confident
     BASELINE = [0.5, 0.1, 0.7, 0.7, 0.2, 0.7]
-    # DECAY: Faster decay (Lambda) = More stable/considerate baseline return
-    DECAY_RATES = [0.15, 0.2, 0.1, 0.12, 0.15, 0.1]
+    # DECAY: Slower decay = emotions linger and build momentum
+    DECAY_RATES = [0.04, 0.06, 0.03, 0.035, 0.05, 0.03]
     
-    # Interaction Matrix A (Damped factors to reduce erratic behavior)
+    # Interaction Matrix A — emotions feed into each other for compound states
     INTERACTIONS = {
-        1: [(0, -0.05), (5, -0.1)],  # Frustration slightly damps Joy/Conf
-        4: [(0, -0.1), (3, -0.05)],  # Concern slightly damps Joy/Cur
-        5: [(1, -0.08)],             # Confidence resists Frustration
-        0: [(5, 0.05)],              # Joy boosts Confidence
+        1: [(0, -0.08), (5, -0.12)],  # Frustration damps Joy & Confidence
+        4: [(0, -0.1), (3, -0.06)],   # Concern damps Joy & Curiosity
+        5: [(1, -0.1)],               # Confidence resists Frustration
+        0: [(5, 0.08), (2, 0.04)],    # Joy boosts Confidence & Empathy
+        3: [(0, 0.06), (5, 0.04)],    # Curiosity feeds Joy & Confidence
+        2: [(4, 0.05), (0, 0.03)],    # Empathy raises Concern awareness & gentle Joy
     }
 
     # -- Property Interface for Backward Compatibility --
@@ -194,12 +196,12 @@ class EmotionalState:
             decay_force = self.DECAY_RATES[i] * (self._vector[i] - self.BASELINE[i])
             delta[i] -= decay_force
             
-        # Interaction term (Lower scaling for considerateness)
+        # Interaction term — emotions feed into each other dynamically
         for src_idx, influences in self.INTERACTIONS.items():
             src_val = self._vector[src_idx]
-            if src_val > 0.4: # Filter for significant emotions
+            if src_val > 0.25:  # Lower threshold = more dynamic interactions
                 for target_idx, factor in influences:
-                    delta[target_idx] += factor * src_val * 0.05 # Damped
+                    delta[target_idx] += factor * src_val * 0.15  # Stronger coupling
         
         # 2. Integrate
         for i in range(6):
@@ -214,7 +216,7 @@ class EmotionalState:
         """
         Apply an instantaneous impulse to the state vector.
         """
-        intensity = max(0.01, min(0.3, intensity))
+        intensity = max(0.01, min(0.6, intensity))
         
         # Trigger mappings
         effects = []

@@ -450,13 +450,14 @@
         <span id="statusText">Checking Groq…</span>
     </div>
 
-    <!-- Dominant Emotion -->
+    <!-- Mood -->
     <div>
-        <div class="section-title">Dominant Emotion</div>
+        <div class="section-title">Current Mood</div>
         <div class="emotion-chip" id="emotionChip" style="margin-top: 6px;">
             <span class="dot" id="emotionDot"></span>
             <span id="emotionLabel">initialising</span>
         </div>
+        <div id="moodLabel" style="margin-top: 4px; font-size: 0.7rem; color: var(--text-muted); font-style: italic;"></div>
     </div>
 
     <!-- Emotion Bars -->
@@ -589,6 +590,14 @@
                 <span class="dot" style="background: var(--ember);"></span>
                 <span style="font-size: 0.72rem; color: var(--text-dim);">Active — Life is Precious</span>
             </div>
+        </div>
+    </div>
+
+    <!-- Thoughts Stream (Option A: moved from chat) -->
+    <div>
+        <div class="section-title">💭 Thoughts</div>
+        <div id="thoughtStream" style="margin-top: 6px; max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-style: italic;">Waiting for first thought…</span>
         </div>
     </div>
 
@@ -768,11 +777,30 @@
             if (valEl) valEl.textContent = val.toFixed(2);
         }
 
-        // Dominant emotion
+        // Dominant emotion + compound mood
         if (state.dominant_emotion) {
             $('emotionLabel').textContent = state.dominant_emotion;
             const color = emotionColors[state.dominant_emotion] || '#70d6ff';
             $('emotionDot').style.background = color;
+        }
+        if (state.emotions) {
+            const e = state.emotions;
+            const moodEl = $('moodLabel');
+            // Compound mood detection
+            let mood = '';
+            if (e.joy > 0.6 && e.curiosity > 0.6) mood = '🔥 Passionate — deeply engaged';
+            else if (e.curiosity > 0.7 && e.confidence > 0.5) mood = '🧠 In the zone — focused exploration';
+            else if (e.empathy > 0.7 && e.concern > 0.4) mood = '🤝 Protective — caring deeply';
+            else if (e.joy > 0.7 && e.confidence > 0.6) mood = '✨ Radiant — brimming with energy';
+            else if (e.frustration > 0.5 && e.confidence > 0.5) mood = '⚡ Defiant — challenged but resolute';
+            else if (e.curiosity > 0.6 && e.empathy > 0.6) mood = '🌱 Nurturing — learning to understand';
+            else if (e.concern > 0.5 && e.frustration > 0.4) mood = '🌊 Turbulent — processing conflict';
+            else if (e.joy > 0.5 && e.empathy > 0.6) mood = '☀️ Warm — feeling connected';
+            else if (e.confidence > 0.7) mood = '🏔️ Steadfast — sure of the path';
+            else if (e.curiosity > 0.6) mood = '🔍 Intrigued — something caught my eye';
+            else if (e.empathy > 0.6) mood = '💫 Reflective — thinking about you';
+            else mood = '🌿 Calm — present and aware';
+            moodEl.textContent = mood;
         }
 
         // Neural
@@ -842,6 +870,11 @@
     }
 
     socket.on('brio_message', (data) => {
+        // Route learning reports to sidebar thoughts, not chat
+        if (data.type === 'learning_report') {
+            addThoughtToSidebar('📚 ' + data.text.split('\n')[0]);
+            return;
+        }
         addMessage(data.text, data.type === 'greeting' ? 'brio greeting' : 'brio');
     });
 
@@ -849,16 +882,39 @@
         typingInd.classList.toggle('active', data.typing);
     });
 
-    // Thought bubbles
+    // Thought bubbles → sidebar stream (Option A)
     let thoughtTimeout;
+    const thoughtStream = $('thoughtStream');
+    let thoughtCount = 0;
+
+    function addThoughtToSidebar(text) {
+        // Clear placeholder on first thought
+        if (thoughtCount === 0) thoughtStream.innerHTML = '';
+        thoughtCount++;
+
+        const el = document.createElement('div');
+        el.style.cssText = 'font-size: 0.72rem; color: var(--text-dim); font-style: italic; padding: 4px 6px; background: var(--bg-card); border-radius: 6px; border-left: 2px solid var(--curiosity); opacity: 0; transition: opacity 0.4s ease;';
+        el.textContent = text;
+        thoughtStream.prepend(el);
+        requestAnimationFrame(() => el.style.opacity = '1');
+
+        // Keep max 20 thoughts in sidebar
+        while (thoughtStream.children.length > 20) {
+            thoughtStream.removeChild(thoughtStream.lastChild);
+        }
+        thoughtStream.scrollTop = 0;
+    }
+
     socket.on('brio_thought', (data) => {
+        // Show briefly on orb bubble
         thoughtBub.textContent = `💭 ${data.text}`;
         thoughtBub.classList.add('visible');
         clearTimeout(thoughtTimeout);
         thoughtTimeout = setTimeout(() => {
             thoughtBub.classList.remove('visible');
-        }, 8000);
-        addMessage(`💭 ${data.text}`, 'system');
+        }, 6000);
+        // Add to sidebar stream instead of chat
+        addThoughtToSidebar(data.text);
     });
 
     // ─── SEND MESSAGE ──────────────────────────────────────

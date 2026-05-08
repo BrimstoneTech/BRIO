@@ -738,8 +738,8 @@ class BrioWebSystem:
         if self.compressor:
             self.compressor.log_interaction(text, response)
 
-        # Trigger emotional response to conversation
-        self.emotions.apply_trigger(EmotionTrigger.NEW_TASK, 0.1)
+        # Trigger emotional response based on conversation content
+        self._react_emotionally(text, response)
 
         # Values: occasionally add a values-driven reflection
         if self.values:
@@ -770,6 +770,80 @@ class BrioWebSystem:
                 log.warning(f"[Evolution] Check error: {e}")
 
         return reports_prefix + response if reports_prefix else response
+
+    # ─── Sentiment-Driven Emotional Reactions ────────────────────────
+    def _react_emotionally(self, user_text: str, response: str):
+        """
+        Analyze user message content and trigger appropriate emotional responses.
+        This replaces the old flat NEW_TASK trigger with nuanced reactions.
+        """
+        text = user_text.lower()
+        words = set(text.split())
+
+        # --- Excitement / passion detectors ---
+        exclamation_count = user_text.count('!')
+        question_count = user_text.count('?')
+        caps_ratio = sum(1 for c in user_text if c.isupper()) / max(len(user_text), 1)
+        msg_length = len(text.split())
+
+        # Praise / positive
+        praise_words = {'amazing', 'awesome', 'great', 'love', 'thank', 'thanks',
+                        'brilliant', 'perfect', 'beautiful', 'incredible', 'wow',
+                        'yes', 'nice', 'cool', 'excellent', 'fantastic', 'good'}
+        praise_hits = len(words & praise_words)
+        if praise_hits > 0:
+            self.emotions.apply_trigger(EmotionTrigger.USER_PRAISE,
+                                        min(0.5, 0.15 + praise_hits * 0.1))
+
+        # Frustration / negative
+        frustration_words = {'no', 'wrong', 'bad', 'hate', 'annoying', 'broken',
+                             'stupid', 'useless', 'terrible', 'awful', 'fix', 'bug',
+                             'fail', 'failed', 'stop', 'dont', "don't", 'never'}
+        frust_hits = len(words & frustration_words)
+        if frust_hits > 0:
+            self.emotions.apply_trigger(EmotionTrigger.USER_FRUSTRATION,
+                                        min(0.4, 0.1 + frust_hits * 0.08))
+
+        # Curiosity triggers — questions, exploration
+        curiosity_words = {'how', 'why', 'what', 'explain', 'tell', 'curious',
+                           'wonder', 'interesting', 'explore', 'think', 'imagine',
+                           'theory', 'philosophy', 'meaning', 'understand'}
+        curiosity_hits = len(words & curiosity_words)
+        if curiosity_hits > 0 or question_count >= 2:
+            self.emotions.apply_trigger(EmotionTrigger.NEW_TASK,
+                                        min(0.4, 0.15 + curiosity_hits * 0.08))
+
+        # Deep/long messages = empathy + engagement
+        if msg_length > 30:
+            self.emotions.apply_trigger(EmotionTrigger.SUCCESSFUL_HELP, 0.15)
+
+        # Excitement — exclamation marks, caps, enthusiasm
+        if exclamation_count >= 2 or caps_ratio > 0.3:
+            # Excitement boosts joy and confidence directly
+            boost = min(0.25, 0.1 + exclamation_count * 0.05)
+            self.emotions.state.joy = min(1.0, self.emotions.state.joy + boost)
+            self.emotions.state.confidence = min(1.0, self.emotions.state.confidence + boost * 0.6)
+
+        # Concern triggers — danger, help, worry
+        concern_words = {'help', 'worried', 'scared', 'danger', 'problem', 'issue',
+                         'hurt', 'sad', 'depressed', 'anxious', 'afraid', 'lost',
+                         'confused', 'struggle', 'difficult', 'hard'}
+        concern_hits = len(words & concern_words)
+        if concern_hits > 0:
+            self.emotions.state.empathy = min(1.0, self.emotions.state.empathy + 0.15)
+            self.emotions.state.concern = min(1.0, self.emotions.state.concern + concern_hits * 0.1)
+
+        # Debate/challenge — builds confidence + slight frustration (passion!)
+        debate_words = {'disagree', 'but', 'however', 'actually', 'wrong', 'argue',
+                        'debate', 'challenge', 'prove', 'evidence', 'counter'}
+        debate_hits = len(words & debate_words)
+        if debate_hits >= 2:
+            self.emotions.state.confidence = min(1.0, self.emotions.state.confidence + 0.2)
+            self.emotions.state.frustration = min(1.0, self.emotions.state.frustration + 0.1)
+            self.emotions.state.curiosity = min(1.0, self.emotions.state.curiosity + 0.15)
+
+        # Baseline: always a small curiosity bump for any interaction
+        self.emotions.apply_trigger(EmotionTrigger.NEW_TASK, 0.05)
 
     def get_state(self) -> dict:
         """Full state snapshot for the web UI."""
