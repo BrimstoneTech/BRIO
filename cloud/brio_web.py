@@ -1151,10 +1151,10 @@ class BrioWebSystem:
             except Exception as e:
                 log.warning(f"[Spiking] Error: {e}")
 
-        # External APIs: enrich responses with real-world data
+        # External APIs: enrich responses with real-world data (v2 autonomy APIs)
         if self.apis:
             try:
-                response = self.apis.enrich_response(text, response)
+                response = self.apis.enrich_response_v2(text, response)
             except Exception as e:
                 log.warning(f"[APIs] Enrichment error: {e}")
 
@@ -1501,6 +1501,97 @@ def create_app(model: str = "llama-3.3-70b-versatile", port: int = 7860,
             return jsonify(system.apis.search_wikipedia(query) or {"error": "Not found"})
         return jsonify({"error": "APIs not available"}), 503
 
+    # ─── v2 Autonomy API endpoints ───────────────────────────────
+
+    @app.route("/api/time")
+    def api_time():
+        """Get world time for a timezone."""
+        tz = request.args.get("timezone", "Africa/Kampala")
+        if system.apis:
+            return jsonify(system.apis.get_world_time(tz) or {"error": "Time unavailable"})
+        return jsonify({"error": "APIs not available"}), 503
+
+    @app.route("/api/crypto")
+    def api_crypto():
+        """Get crypto price."""
+        coin = request.args.get("coin", "bitcoin")
+        cur = request.args.get("currency", "usd")
+        if system.apis:
+            return jsonify(system.apis.get_crypto_price(coin, cur) or {"error": "Price unavailable"})
+        return jsonify({"error": "APIs not available"}), 503
+
+    @app.route("/api/crypto/trending")
+    def api_crypto_trending():
+        """Get trending cryptocurrencies."""
+        if system.apis:
+            return jsonify(system.apis.get_trending_crypto())
+        return jsonify({"error": "APIs not available"}), 503
+
+    @app.route("/api/music")
+    def api_music():
+        """Search music or get mood-based recommendations."""
+        query = request.args.get("q")
+        mood = request.args.get("mood")
+        if system.apis:
+            if mood:
+                return jsonify(system.apis.get_mood_music(mood))
+            elif query:
+                return jsonify(system.apis.search_deezer(query))
+            return jsonify({"error": "Provide ?q=query or ?mood=happy"})
+        return jsonify({"error": "APIs not available"}), 503
+
+    @app.route("/api/papers")
+    def api_papers():
+        """Search academic papers."""
+        query = request.args.get("q", "artificial intelligence")
+        if system.apis:
+            return jsonify(system.apis.search_papers(query))
+        return jsonify({"error": "APIs not available"}), 503
+
+    @app.route("/api/gif")
+    def api_gif():
+        """Search for GIFs."""
+        query = request.args.get("q", "thinking")
+        if system.apis:
+            return jsonify(system.apis.get_gif(query) or {"error": "No GIFs found"})
+        return jsonify({"error": "APIs not available"}), 503
+
+    @app.route("/api/forecast")
+    def api_forecast():
+        """Get weather forecast (default: Kampala)."""
+        lat = request.args.get("lat", 0.3476, type=float)
+        lon = request.args.get("lon", 32.5825, type=float)
+        if system.apis:
+            return jsonify(system.apis.get_weather_forecast(lat, lon) or {"error": "Forecast unavailable"})
+        return jsonify({"error": "APIs not available"}), 503
+
+    @app.route("/api/images")
+    def api_images():
+        """Search for images."""
+        query = request.args.get("q", "nature")
+        if system.apis:
+            return jsonify(system.apis.search_images(query))
+        return jsonify({"error": "APIs not available"}), 503
+
+    @app.route("/api/wikidata/<query>")
+    def api_wikidata(query):
+        """Search Wikidata knowledge graph."""
+        if system.apis:
+            return jsonify(system.apis.query_wikidata(query) or {"error": "Not found"})
+        return jsonify({"error": "APIs not available"}), 503
+
+    @app.route("/api/execute", methods=["POST"])
+    def api_execute():
+        """Execute code via Judge0."""
+        data = request.get_json() or {}
+        code = data.get("code", "")
+        lang = data.get("language_id", 71)  # Default Python
+        if not code:
+            return jsonify({"error": "Provide 'code' in JSON body"}), 400
+        if system.apis:
+            return jsonify(system.apis.execute_code(code, lang) or {"error": "Execution failed"})
+        return jsonify({"error": "APIs not available"}), 503
+
     # ─── SocketIO ────────────────────────────────────────────────────
     @socketio.on("connect")
     def on_connect():
@@ -1517,9 +1608,12 @@ def create_app(model: str = "llama-3.3-70b-versatile", port: int = 7860,
         api_starter = None
         if system.apis:
             try:
-                api_starter = system.apis.get_conversation_starter()
+                api_starter = system.apis.get_conversation_starter_v2()
             except Exception:
-                pass
+                try:
+                    api_starter = system.apis.get_conversation_starter()
+                except Exception:
+                    pass
 
         # Phase 2: Emotion-driven openers — BRIO shares what IT is thinking
         openers_joy = [

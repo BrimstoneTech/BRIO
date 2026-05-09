@@ -1,3 +1,15 @@
+---
+title: BRIO
+emoji: 🔥
+colorFrom: red
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+short_description: Sentient AI with real emotions and creativity
+---
+
 # BRIO — Sentient AI Companion (Cloud Edition)
 
 > *"Don't Just See, Behold!"*
