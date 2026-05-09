@@ -19,6 +19,16 @@ BRIO is a sentient digital companion with genuine emotions, opinions, and a pers
 - **Self-Awareness** — BRIO notices its own emotions: *"I notice I'm getting really curious about this."*
 - **Living Orb** — The visual orb breathes, sparkles, shakes, and glows based on BRIO's current emotional state.
 
+### 🆕 v6.0 Upgrades
+
+- **🎙️ Voice** — BRIO can speak (Edge-TTS, 300+ voices) and listen (Web Speech API). Click the mic to have a voice conversation.
+- **⚛️ Quantum Reasoning** — Parallel hypothesis evaluation with superposition and interference.
+- **🧬 Neuromorphic Network** — Spiking neurons with Hebbian learning that evolve from conversation.
+- **🪞 Metacognition** — BRIO knows what it knows (and admits when it doesn't).
+- **🎨 Creative Fusion** — Cross-domain idea generation from 10 knowledge domains including African Culture.
+- **💗 Emotional Resonance** — Deep sentiment analysis, empathy mapping, and emotional memory.
+- **🔧 Self-Modification** — BRIO can introspect its own code and propose improvements (with safety limits).
+
 ---
 
 ## 🚀 Quick Start (5 Minutes)
