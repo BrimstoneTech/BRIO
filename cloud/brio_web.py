@@ -132,6 +132,47 @@ except Exception:
 from brio_mind import BrioMind
 
 # ---------------------------------------------------------------------------
+# Upgrade modules (v6.0 — all stdlib-only, zero external deps)
+# ---------------------------------------------------------------------------
+try:
+    from brio_quantum import QuantumReasoner
+except Exception:
+    QuantumReasoner = None
+
+try:
+    from brio_neuromorphic import SpikingNetwork
+except Exception:
+    SpikingNetwork = None
+
+try:
+    from brio_meta_reasoning import MetaCognitiveEngine
+except Exception:
+    MetaCognitiveEngine = None
+
+try:
+    from brio_creative_fusion import CreativeFusionEngine
+except Exception:
+    CreativeFusionEngine = None
+
+try:
+    from brio_emotional_resonance import EmotionalResonanceEngine
+except Exception:
+    EmotionalResonanceEngine = None
+
+try:
+    from brio_self_modifier import SelfModifier
+except Exception:
+    SelfModifier = None
+
+# Voice (TTS — needs edge-tts, graceful fallback)
+try:
+    from brio_voice import BrioTTS, BrioWebVoice, TTSEngine
+except Exception:
+    BrioTTS = None
+    BrioWebVoice = None
+    TTSEngine = None
+
+# ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
 logging.basicConfig(
@@ -773,6 +814,68 @@ class BrioWebSystem:
         except Exception:
             self.compressor = None
 
+        # --- v6.0 Upgrade Modules ---
+        self.quantum = None
+        if QuantumReasoner:
+            try:
+                self.quantum = QuantumReasoner()
+                log.info("[System] Quantum Reasoner ready — parallel hypothesis evaluation active.")
+            except Exception as e:
+                log.warning(f"[System] Quantum Reasoner skipped: {e}")
+
+        self.spiking = None
+        if SpikingNetwork:
+            try:
+                self.spiking = SpikingNetwork(n_neurons=64)
+                log.info("[System] Spiking Neural Network ready — neuromorphic pattern learning active.")
+            except Exception as e:
+                log.warning(f"[System] Spiking Network skipped: {e}")
+
+        self.metacognition = None
+        if MetaCognitiveEngine:
+            try:
+                self.metacognition = MetaCognitiveEngine()
+                log.info("[System] Metacognitive Engine ready — self-reflective reasoning active.")
+            except Exception as e:
+                log.warning(f"[System] Metacognition skipped: {e}")
+
+        self.creative = None
+        if CreativeFusionEngine:
+            try:
+                self.creative = CreativeFusionEngine()
+                log.info("[System] Creative Fusion Engine ready — cross-domain ideation active.")
+            except Exception as e:
+                log.warning(f"[System] Creative Fusion skipped: {e}")
+
+        self.resonance = None
+        if EmotionalResonanceEngine:
+            try:
+                self.resonance = EmotionalResonanceEngine()
+                log.info("[System] Emotional Resonance Engine ready — deep empathy active.")
+            except Exception as e:
+                log.warning(f"[System] Emotional Resonance skipped: {e}")
+
+        self.self_modifier = None
+        if SelfModifier:
+            try:
+                self.self_modifier = SelfModifier(brio_root=os.path.dirname(os.path.abspath(__file__)))
+                self.self_modifier.introspect_all()
+                report = self.self_modifier.get_self_awareness_report()
+                log.info(f"[System] Self-Modifier ready — aware of {report['modules_known']} modules, "
+                         f"{report['total_functions']} functions.")
+            except Exception as e:
+                log.warning(f"[System] Self-Modifier skipped: {e}")
+
+        # --- Voice (TTS for cloud) ---
+        self.voice = None
+        if BrioWebVoice:
+            try:
+                static_audio = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "audio")
+                self.voice = BrioWebVoice(voice="en-GB-RyanNeural", output_dir=static_audio)
+                log.info("[System] Voice Engine ready — BRIO can speak (Edge-TTS).")
+            except Exception as e:
+                log.warning(f"[System] Voice skipped: {e}")
+
         # --- State ---
         self._load_state()
         self.is_awake = True
@@ -941,6 +1044,70 @@ class BrioWebSystem:
                         setattr(self.emotions.state, emo_name, min(1.0, current + adj))
             except Exception as e:
                 log.warning(f"[Momentum] Error: {e}")
+
+        # --- v6.0 Upgrade Module Processing ---
+
+        # Emotional Resonance: deep sentiment analysis + empathy mapping
+        if self.resonance:
+            try:
+                analysis = self.resonance.analyze(text)
+                if analysis.get("dominant_emotion") and analysis.get("intensity", 0) > 0.5:
+                    tone = self.resonance.get_mirroring_tone(analysis)
+                    # Store for use in response formatting
+                    self._last_resonance_tone = tone
+                    # Check if user needs comfort
+                    comfort = self.resonance.get_comfort_response(analysis)
+                    if comfort:
+                        response = comfort + "\n\n" + response
+                    # Track emotional memory
+                    self.resonance.remember_emotion(text, analysis)
+            except Exception as e:
+                log.warning(f"[Resonance] Error: {e}")
+
+        # Metacognition: assess confidence in the response
+        if self.metacognition:
+            try:
+                # Record this reasoning step
+                self.metacognition.record_reasoning_step(
+                    step_type="response_generation",
+                    content=response[:200],
+                    confidence=0.7
+                )
+                # Check if BRIO should admit uncertainty
+                if self.metacognition.should_say_i_dont_know(
+                    question=text, confidence=0.3,
+                    has_relevant_knowledge=bool(self.system if hasattr(self, 'system') else True)
+                ):
+                    response += "\n\n_I should note: I'm not entirely certain about this. My confidence is lower than usual._"
+            except Exception as e:
+                log.warning(f"[Metacognition] Error: {e}")
+
+        # Creative Fusion: occasionally spark creative connections
+        if self.creative:
+            try:
+                import random
+                # 15% chance of adding a creative cross-domain connection
+                if random.random() < 0.15 and len(text.split()) > 5:
+                    ideas = self.creative.ideate(text[:50], n=1)
+                    if ideas:
+                        idea = ideas[0]
+                        if idea.get("novelty_score", 0) > 0.5:
+                            creative_note = f"\n\n\u2728 _{idea.get('idea', '')}_"
+                            response += creative_note
+            except Exception as e:
+                log.warning(f"[Creative] Error: {e}")
+
+        # Spiking Network: feed conversation patterns for learning
+        if self.spiking:
+            try:
+                # Convert text to simple input pattern (word hashes → neuron indices)
+                words = text.lower().split()[:10]
+                input_indices = [hash(w) % 64 for w in words if len(w) > 2]
+                if input_indices:
+                    self.spiking.stimulate(input_indices)
+                    self.spiking.step()
+            except Exception as e:
+                log.warning(f"[Spiking] Error: {e}")
 
         # Opinions: observe the exchange
         if self.opinions:
@@ -1196,6 +1363,51 @@ def create_app(model: str = "llama-3.3-70b-versatile", port: int = 7860,
         if system.curiosity:
             return jsonify(system.curiosity.get_knowledge_growth())
         return jsonify({"error": "Curiosity engine not active"}), 404
+
+    # ─── Voice TTS Endpoint ──────────────────────────────────────────
+    @app.route("/api/tts", methods=["POST"])
+    def api_tts():
+        """Convert text to speech. Returns audio/mpeg file."""
+        if not system.voice:
+            return jsonify({"error": "Voice engine not available"}), 503
+        data = request.get_json(silent=True) or {}
+        text = data.get("text", "").strip()
+        if not text:
+            return jsonify({"error": "No text provided"}), 400
+        try:
+            audio_path = system.voice.generate_audio(text)
+            return send_from_directory(
+                os.path.dirname(audio_path),
+                os.path.basename(audio_path),
+                mimetype="audio/mpeg"
+            )
+        except Exception as e:
+            log.error(f"[Voice] TTS error: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/voice/status")
+    def api_voice_status():
+        """Check voice engine availability."""
+        return jsonify({
+            "available": system.voice is not None,
+            "engine": "edge-tts" if system.voice else None,
+            "default_voice": "en-GB-RyanNeural",
+        })
+
+    # ─── Upgrade Module Stats ────────────────────────────────────────
+    @app.route("/api/upgrades")
+    def api_upgrades():
+        """Show status of v6.0 upgrade modules."""
+        return jsonify({
+            "quantum_reasoner": system.quantum is not None,
+            "spiking_network": system.spiking is not None,
+            "metacognition": system.metacognition is not None,
+            "creative_fusion": system.creative is not None,
+            "emotional_resonance": system.resonance is not None,
+            "self_modifier": system.self_modifier is not None,
+            "voice": system.voice is not None,
+            "self_awareness": system.self_modifier.get_self_awareness_report() if system.self_modifier else None,
+        })
 
     # ─── SocketIO ────────────────────────────────────────────────────
     @socketio.on("connect")
