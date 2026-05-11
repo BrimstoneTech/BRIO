@@ -44,6 +44,8 @@ from brio_communication import CommunicationCycle
 from brio_emotions import EmotionEngine, EmotionType, EmotionTrigger
 from brio_memory import BrioMemoryEngram
 from brio_mind import BrioMind
+from brio_local_access import BrioLocalAccess   # Local machine access
+from brio_autonomy import BrioAutonomy          # Autonomy bridge
 # Note: Heavy modules (Voice, Search, Ideas, Visuals, Security, Learning, Media) 
 # are now lazy-loaded in _background_awakening for Instant Boot.
 
@@ -256,6 +258,19 @@ class BrioSystem:
             except Exception as ce:
                 print(f"[System] NeuralCompressor skipped: {ce}")
                 self.compressor = None
+
+            # --- Local Machine Access + Autonomy Bridge ---
+            print("[System] Loading local access & autonomy bridge...")
+            self.desktop_ui.bridge.status_signal.emit("Autonomy")
+            self.app.processEvents()
+            try:
+                self.local = BrioLocalAccess()
+                self.autonomy = BrioAutonomy(system_ref=self)
+                print(f"[System] Autonomy bridge online. Local={self.local.is_local}")
+            except Exception as ae:
+                print(f"[System] Autonomy bridge skipped: {ae}")
+                self.local = None
+                self.autonomy = None
             
             print("[System] All sub-systems initialized successfully.")
             
@@ -299,6 +314,16 @@ class BrioSystem:
                 self.comm_cycle = CommunicationCycle(sender="Human", receiver="Brio")
             if not hasattr(self, 'compressor'):
                 self.compressor = None
+            if not hasattr(self, 'local'):
+                try:
+                    self.local = BrioLocalAccess()
+                except Exception:
+                    self.local = None
+            if not hasattr(self, 'autonomy'):
+                try:
+                    self.autonomy = BrioAutonomy(system_ref=self)
+                except Exception:
+                    self.autonomy = None
 
 
 
@@ -670,6 +695,12 @@ class BrioSystem:
                     response = "Language modules offline."
                 elif action == "detect":
                     response = "NEEDS_DETECTION"
+                elif action in ("capabilities", "whatcanyoudo", "help"):
+                    if getattr(self, 'autonomy', None):
+                        response = self.autonomy.get_capabilities()
+                    else:
+                        response = "I can converse, learn, search the web, and remember. Local autonomy is not yet online."
+                    self._speak_and_think("Here is what I can do on your machine.", duration=4)
                 else:
                     response = "NEEDS_NATURAL_LANGUAGE"
                 return response

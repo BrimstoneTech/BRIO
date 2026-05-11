@@ -148,14 +148,67 @@ class DecisionEngine:
     def classify_intent(text: str) -> str:
         """
         Heuristic-based intent classification for v4.0 command-less control.
+        Intents (in priority order):
+          local  — filesystem, shell, system info, clipboard, screenshot
+          agent  — GUI automation (mouse/keyboard/draw)
+          vision — screen analysis
+          feedback — reward/reprimand
+          query  — web search
+          chat   — general conversation
         """
-        text = text.lower()
-        if any(w in text for w in ["see", "look", "screen", "this file", "what is this"]):
+        text_lower = text.lower().strip()
+
+        # ── Local machine access ──────────────────────────────────────────────
+        LOCAL_TRIGGERS = [
+            "ls ", "dir ", "list files", "list the files", "show files",
+            "cat ", "read file", "read the file", "open file",
+            "run ", "exec ", "execute ", "$ ", "! ",
+            "run python", "python ", "pip install", "install package",
+            "system info", "my computer", "my machine", "cpu ", "ram ",
+            "disk usage", "disk space", "free space",
+            "processes", "what's running", "task list", "running apps",
+            "network info", "ip address", "local ip",
+            "open app", "launch app", "start app", "open application",
+            "open url", "browse to", "navigate to",
+            "take a screenshot", "capture screen", "screenshot",
+            "clipboard", "read clipboard",
+            "find files", "search files",
+            "what can you do", "your capabilities", "what do you have access to",
+            # Project Auditor
+            "assess ", "audit ", "plan ", "roadmap", "eta ",
+            "estimate ", "break down", "deconstruct",
+            "how long will", "give me a plan", "create a roadmap",
+            "project status", "progress", "how far",
+            "proceed", "go ahead", "start execution",
+            "cancel project", "abort",
+        ]
+        if any(text_lower.startswith(t) or t in text_lower for t in LOCAL_TRIGGERS):
+            return "local"
+
+        # ── Desktop GUI automation ────────────────────────────────────────────
+        AGENT_TRIGGERS = [
+            "click ", "double click", "right click",
+            "type into", "press ", "drag ", "scroll ",
+            "focus window", "close window", "open paint",
+            "open notepad", "open word", "open excel", "open browser",
+            "draw ", "sketch ", "paint a", "doodle", "create art",
+            "make a drawing", "make a picture",
+        ]
+        if any(text_lower.startswith(t) or t in text_lower for t in AGENT_TRIGGERS):
+            return "agent"
+
+        # ── Screen vision ─────────────────────────────────────────────────────
+        if any(w in text_lower for w in ["see", "look", "this file", "what is this"]):
             return "vision"
-        if any(w in text for w in ["good job", "bad brio", "reward", "reprimand", "fix your", "no", "yes"]):
+
+        # ── Feedback / reinforcement ──────────────────────────────────────────
+        if any(w in text_lower for w in ["good job", "bad brio", "reward", "reprimand", "fix your"]):
             return "feedback"
-        if any(w in text for w in ["what", "who", "where", "how", "search", "tell me"]):
+
+        # ── Web query ─────────────────────────────────────────────────────────
+        if any(w in text_lower for w in ["what", "who", "where", "how", "search", "tell me"]):
             return "query"
+
         return "chat"
     @staticmethod
     def detect_radical_shift(state: BrioState, threshold: float = 3.5) -> str:

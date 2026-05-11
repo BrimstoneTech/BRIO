@@ -22,6 +22,8 @@ class BrioBrain:
         self.builder.add_node("human_clarification", self.human_clarification)
         self.builder.add_node("memory_update", self.memory_update)
         self.builder.add_node("web_sift", self.web_sift_node)
+        self.builder.add_node("local_action", self.local_action_node)   # ← Autonomy
+        self.builder.add_node("agent_action", self.agent_action_node)   # ← GUI Agent
         
         # 2. Define Edges
         self.builder.set_entry_point("brio_think")
@@ -32,7 +34,9 @@ class BrioBrain:
                 "human_checkpoint": "human_checkpoint",
                 "human_clarification": "human_clarification",
                 "memory_update": "memory_update",
-                "web_sift": "web_sift"
+                "web_sift": "web_sift",
+                "local_action": "local_action",   # ← Autonomy route
+                "agent_action": "agent_action",   # ← GUI route
             }
         )
         
@@ -47,6 +51,8 @@ class BrioBrain:
         )
         self.builder.add_edge("human_clarification", END)
         self.builder.add_edge("web_sift", "memory_update")
+        self.builder.add_edge("local_action", END)   # Local actions don't need memory update
+        self.builder.add_edge("agent_action", END)   # Agent actions don't need memory update
         self.builder.add_edge("memory_update", END)
         
         # 3. Neural Cache & Working Memory
@@ -123,11 +129,18 @@ class BrioBrain:
         }
 
     def route_conversation(self, state: BrioState):
-        """State-driven routing with v4.0 Intuition"""
+        """State-driven routing with v4.5 Intuition + Autonomy"""
         intent = state.get("intent", "chat")
         
+        # ── Autonomy routes (highest priority — bypass Ollama) ────────────────
+        if intent == "local":
+            return "local_action"
+        if intent == "agent":
+            return "agent_action"
+        
+        # ── Standard routes ───────────────────────────────────────────────────
         if intent == "feedback":
-            return "memory_update" 
+            return "memory_update"
         if intent == "query":
             return "web_sift"
         if state.get("confusion", 0) > 0.8:
@@ -186,6 +199,46 @@ class BrioBrain:
                 importance=0.9 if intent == "feedback" else 0.7
             )
         return state
+
+    # ─── Autonomy Nodes ───────────────────────────────────────────────────────
+
+    def local_action_node(self, state: BrioState):
+        """
+        Routes local machine commands to BrioAutonomy.
+        Bypasses Ollama entirely — direct execution with safety gate.
+        """
+        user_input = state["last_message"]
+        response = ""
+
+        if getattr(self.system, 'autonomy', None):
+            result = self.system.autonomy.handle(user_input)
+            response = result if result is not None else "I wasn't sure how to handle that locally."
+        else:
+            # Fallback: autonomy not loaded, try the local_access module directly
+            if getattr(self.system, 'local', None):
+                response = self.system.local.handle_command(user_input) or "Local access returned no result."
+            else:
+                response = "Local access is not initialized."
+
+        # Show thought in UI
+        self.system.desktop_ui.show_thought(response[:200], duration_sec=6)
+        return {"response": response, "intent": "local"}
+
+    def agent_action_node(self, state: BrioState):
+        """
+        Routes GUI automation commands to BrioAutonomy (desktop agent).
+        """
+        user_input = state["last_message"]
+        response = ""
+
+        if getattr(self.system, 'autonomy', None):
+            result = self.system.autonomy.handle(user_input)
+            response = result if result is not None else "GUI task queued."
+        else:
+            response = "Desktop agent (autonomy module) is not initialized."
+
+        self.system.desktop_ui.show_thought(response[:200], duration_sec=6)
+        return {"response": response, "intent": "agent"}
 
     def process_interaction(self, user_input: str):
         """Entry point for the Brain (v4.0)"""

@@ -12,6 +12,7 @@ try:
     import numpy as np
     from sentence_transformers import SentenceTransformer
     import fitz  # PyMuPDF
+    from bs4 import BeautifulSoup # HTML Processing
 except ImportError as e:
     print(f"[BrioMemory] CRITICAL: Missing dependency {e}. Local RAG will not function.")
     DEPENDENCIES_OK = False
@@ -190,10 +191,18 @@ class BrioMemoryEngram:
     
     def _extract_text(self, filepath):
         try:
-            if filepath.endswith('.pdf'):
+            ext = os.path.splitext(filepath)[1].lower()
+            if ext == '.pdf':
                 doc = fitz.open(filepath)
                 return " ".join([page.get_text() for page in doc])
-            elif filepath.endswith('.txt') or filepath.endswith('.md'):
+            elif ext in ('.html', '.htm'):
+                with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                    soup = BeautifulSoup(f.read(), 'lxml')
+                    # Remove scripts and styles
+                    for script_or_style in soup(["script", "style"]):
+                        script_or_style.decompose()
+                    return soup.get_text(separator=' ')
+            elif ext in ('.txt', '.md', '.py', '.json'):
                 with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                     return f.read()
         except Exception as e:

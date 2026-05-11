@@ -1,0 +1,22 @@
+{
+  "current_generation": 1,
+  "total_rebirths": 0,
+  "lifespan_interactions": 500,
+  "lifespan_hours": 168,
+  "current_life": {
+    "generation": 1,
+    "name": "Spark",
+    "born": "2026-05-08T08:25:44.886896",
+    "died": null,
+    "interactions": 0,
+    "facts_learned": 0,
+    "milestones_completed": 0,
+    "topics_explored": [],
+    "strongest_domain": null,
+    "legacy_wisdom": [],
+    "final_words": null,
+    "cause_of_transition": "natural"
+  },
+  "past_lives": [],
+  "ancestral_memories": []
+}

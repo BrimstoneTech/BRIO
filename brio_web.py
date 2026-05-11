@@ -98,6 +98,11 @@ except Exception:
 # Mind (Ollama — only needs `requests`)
 from brio_mind import BrioMind
 
+# Local Access & Autonomy Bridge (v5.0 Integration)
+from brio_local_access import BrioLocalAccess
+from brio_autonomy import BrioAutonomy
+from brio_workspace_watcher import WorkspaceWatcher
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
@@ -170,6 +175,18 @@ class BrioBrainWeb:
             # 1. Intent classification
             intent = DecisionEngine.classify_intent(user_input)
             log.info(f"[Brain] Intent: {intent}")
+
+            # ── Autonomy Gate (v5.0) ──────────────────────────────────
+            # If the intent is local machine access or GUI automation,
+            # we bypass the LLM and route directly to the autonomy bridge.
+            if intent in ("local", "agent"):
+                if hasattr(self.system, 'autonomy') and self.system.autonomy:
+                    result = self.system.autonomy.handle(user_input)
+                    if result:
+                        return result
+                else:
+                    return "My local autonomy bridge is not initialized. I can't reach your machine from here yet."
+            # ──────────────────────────────────────────────────────────
 
             # 2. Neural cache (speed optimisation)
             if user_input.lower() in self.neural_cache and intent == "chat":
@@ -485,7 +502,23 @@ class BrioWebSystem:
         self.visuals = VisualStateManager()
         self.comm_cycle = CommunicationCycle(sender="Human", receiver="Brio")
 
-        # --- Optional sub-systems ---
+        # --- Local machine access + Autonomy Bridge (v5.0) ---
+        try:
+            self.local = BrioLocalAccess()
+            self.autonomy = BrioAutonomy(system_ref=self)
+            log.info(f"[System] Autonomy bridge online. Local={self.local.is_local}")
+        except Exception as e:
+            log.warning(f"[System] Autonomy bridge skipped: {e}")
+            self.local = None
+            self.autonomy = None
+
+        # --- Workspace Sidekick (v5.0) ---
+        self.active_app = "Desktop"
+        self.active_context = "General"
+        self.watcher = WorkspaceWatcher(system_ref=self)
+        self.watcher.start()
+
+        # --- Sub-systems ---
         self.safety = SafetyProbabilityModel() if SafetyProbabilityModel else None
         self.search = SearchEngine(self.watchdog) if SearchEngine else None
         self.storage = StorageManager() if StorageManager else None
@@ -710,15 +743,39 @@ class BrioWebSystem:
             state["search_available"] = True
             state["search_auto"] = self.search.auto_approve_online
 
+        # Workspace Context
+        state["active_app"] = self.active_app
+        state["active_context"] = self.active_context
+
         return state
+
+    def update_context(self, app, context):
+        """Called by the watcher when window changes."""
+        self.active_app = app
+        self.active_context = context
+        # Proactively look up facts for this context
+        if self.memory:
+            facts, _ = self.memory.recall(f"shortcuts for {app} and {context}", n_results=2)
+            if facts:
+                log.info(f"[System] Contextual facts loaded: {len(facts)}")
+
+    def broadcast_context(self, app, context):
+        """Push context update to all web clients."""
+        try:
+            # We use the global socketio instance if available
+            import __main__
+            if hasattr(__main__, 'socketio'):
+                __main__.socketio.emit("brio_context", {"app": app, "context": context})
+        except:
+            pass
 
     def get_autonomous_thought(self) -> Optional[str]:
         """Generate a proactive idea if conditions are met."""
         try:
             idea = self.ideas.generate_thought(
+                self,
                 self.emotions.state.curiosity,
-                self.emotions.state.joy,
-                len(self.knowledge.engrams)
+                self.emotions.state.joy
             )
             if idea:
                 return idea.description
@@ -858,7 +915,8 @@ def create_app(model: str = "llama3.2", port: int = 5000,
                 thought = system.get_autonomous_thought()
                 if thought:
                     socketio.emit("brio_thought", {"text": thought})
-            except Exception:
+            except Exception as e:
+                log.debug(f"Thought Gen Error: {e}")
                 pass
 
     thinker = threading.Thread(target=thought_generator, daemon=True)

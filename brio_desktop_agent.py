@@ -1139,6 +1139,52 @@ class BrowserAdapter(AppAdapter):
         time.sleep(0.3)
 
 
+class BlenderAdapter(AppAdapter):
+    """
+    BRIO's 3D Artisan module for Blender.
+    Allows for both GUI control and direct Python API (bpy) execution.
+    """
+
+    def open_blender(self) -> bool:
+        """Launch Blender and wait for initialization."""
+        # Try common paths or just 'blender' if in PATH
+        paths = ["blender", r"C:\Program Files\Blender Foundation\Blender\blender.exe"]
+        for p in paths:
+            if self.windows.focus_window("Blender"):
+                return True
+            try:
+                import subprocess
+                subprocess.Popen([p])
+                time.sleep(5) # Blender takes a while to boot
+                return True
+            except FileNotFoundError:
+                continue
+        return False
+
+    def execute_bpy_script(self, script_path: str):
+        """Run a Python script inside Blender (The 'Architect' Method)."""
+        if not os.path.exists(script_path):
+            return "Script not found."
+        
+        # Command: blender --python <script>
+        cmd = f"blender --python {script_path}"
+        return self.gui.type_text(f"Execute BPY: {script_path}") # Placeholder for real integration
+
+    def set_viewport(self, mode: str = "RENDER"):
+        """Change Blender viewport shading (SOLID, WIREFRAME, RENDER, MATERIAL)."""
+        # Z is the shortcut pie menu in Blender
+        self.gui.press_key("z")
+        time.sleep(0.2)
+        if mode == "RENDER": self.gui.move_to(500, 300) # Conceptual - needs calibration
+        self.gui.click()
+
+    def render_scene(self, output_path: str):
+        """Trigger a scene render (F12)."""
+        self.gui.press_key("f12")
+        time.sleep(1)
+        log.info(f"[Blender] Rendering scene to {output_path}")
+
+
 # ═══════════════════════════════════════════════════════════════
 #  Task Planner — Break commands into GUI action sequences
 # ═══════════════════════════════════════════════════════════════
@@ -1154,6 +1200,7 @@ class TaskPlanner:
         self.creative = creative
         self.paint = PaintAdapter(gui, vision, windows)
         self.browser = BrowserAdapter(gui, vision, windows)
+        self.blender = BlenderAdapter(gui, vision, windows) # ← New
         self.task_history: List[TaskPlan] = []
         self.task_queue: List[TaskPlan] = []
         self._running = False
@@ -1169,6 +1216,7 @@ class TaskPlanner:
 
         # Determine which app to use
         use_canva = "canva" in desc_lower
+        use_blender = "blender" in desc_lower or "3d" in desc_lower # ← New
         use_browser = "browser" in desc_lower or "web" in desc_lower or use_canva
 
         # Step 1: Open the drawing application
@@ -1183,6 +1231,12 @@ class TaskPlanner:
                 action_type=ActionType.OPEN_APP,
                 params={"app": "browser"},
                 description="Open web browser"
+            ))
+        elif use_blender:
+            plan.steps.append(GUIAction(
+                action_type=ActionType.OPEN_APP,
+                params={"app": "blender"},
+                description="Open Blender"
             ))
         else:
             plan.steps.append(GUIAction(
