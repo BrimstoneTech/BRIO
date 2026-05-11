@@ -721,6 +721,10 @@ class BrioWebSystem:
     def __init__(self, model: str = "llama-3.3-70b-versatile",
                  enable_curiosity: bool = False):
         log.info("[System] Brio Cloud v5.0 — Initialising...")
+        
+        # Load .env (Persistence Fix)
+        self._load_env_file()
+        
         self.boot_start = time.time()
         self.is_awake = False
         self.tick_count = 0
@@ -995,6 +999,29 @@ class BrioWebSystem:
                 log.info("[System] State restored.")
         except Exception as e:
             log.warning(f"State load failed: {e}")
+
+    def _load_env_file(self):
+        """Manually parse .env file to ensure persistence across reboots."""
+        # Look in current dir and parent dir
+        paths = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+        ]
+        for env_path in paths:
+            if os.path.exists(env_path):
+                log.info(f"[System] Loading environment from {env_path}")
+                try:
+                    with open(env_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line or line.startswith("#"):
+                                continue
+                            if "=" in line:
+                                key, val = line.split("=", 1)
+                                os.environ[key.strip()] = val.strip().strip('"').strip("'")
+                    break # Stop at first found .env
+                except Exception as e:
+                    log.warning(f"[System] Could not load .env file: {e}")
 
     # ─── Heartbeat (background) ──────────────────────────────────────
     def _heartbeat_loop(self):

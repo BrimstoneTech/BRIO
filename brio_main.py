@@ -71,6 +71,9 @@ class BrioSystem:
     def __init__(self):
         print("[System] Brio v4.5: Initializing...")
         
+        # 0. Load Environment Variables (Persistence Fix)
+        self._load_env_file()
+        
         # 0. Single Instance Check
         self.instance_lock = SingleInstanceLock()
         self.boot_start = time.time()
@@ -801,6 +804,32 @@ class BrioSystem:
                 data["cpu"] = psutil.cpu_percent(interval=None)
             except: pass
         return data
+        
+    def _load_env_file(self):
+        """Manually parse .env file to ensure persistence across reboots."""
+        env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+        if os.path.exists(env_path):
+            print(f"[System] Loading environment from {env_path}")
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        if "=" in line:
+                            key, val = line.split("=", 1)
+                            # Remove optional quotes
+                            val = val.strip().strip('"').strip("'")
+                            os.environ[key.strip()] = val
+                            # If it's the Groq key, don't print the whole thing
+                            if "KEY" in key.upper():
+                                print(f"  + Loaded {key.strip()} (set)")
+                            else:
+                                print(f"  + Loaded {key.strip()}={val}")
+            except Exception as e:
+                print(f"[ERROR] Could not load .env file: {e}")
+        else:
+            print("[WARNING] No .env file found. Environment variables must be set manually.")
 
 if __name__ == "__main__":
     # Setup error logging

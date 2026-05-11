@@ -93,14 +93,5 @@
   "total_facts_learned": 332,
   "total_quizzes_taken": 52,
   "average_quiz_score": 0.8269230769230771,
-  "sessions": [
-    {
-      "topic": "blender",
-      "trigger": "conversation",
-      "timestamp": "2026-05-11T12:17:11.317240",
-      "facts_count": 5,
-      "quiz_score": 1.0,
-      "pages_read": 1
-    }
-  ]
+  "sessions": []
 }

@@ -1164,11 +1164,16 @@ class BlenderAdapter(AppAdapter):
     def execute_bpy_script(self, script_path: str):
         """Run a Python script inside Blender (The 'Architect' Method)."""
         if not os.path.exists(script_path):
-            return "Script not found."
+            return "❌ Script not found."
         
-        # Command: blender --python <script>
-        cmd = f"blender --python {script_path}"
-        return self.gui.type_text(f"Execute BPY: {script_path}") # Placeholder for real integration
+        try:
+            # Command: blender --background --python <script>
+            # We use background mode for speed unless the user is watching
+            log.info(f"[Blender] Executing script: {script_path}")
+            subprocess.Popen(["blender", "--background", "--python", script_path])
+            return f"🧊 Blender script executed: {os.path.basename(script_path)}"
+        except Exception as e:
+            return f"❌ Failed to run Blender script: {e}"
 
     def set_viewport(self, mode: str = "RENDER"):
         """Change Blender viewport shading (SOLID, WIREFRAME, RENDER, MATERIAL)."""
@@ -1451,6 +1456,8 @@ class TaskPlanner:
             elif app in ("browser", "canva"):
                 url = p.get("url", "")
                 self.browser.open_browser(url)
+            elif app == "blender":
+                self.blender.open_blender()
             else:
                 self.paint.open_app(app)
 
@@ -1458,7 +1465,15 @@ class TaskPlanner:
                                     ActionType.DRAW_RECT, ActionType.DRAW_FREEFORM,
                                     ActionType.DRAW_CURVE):
             instructions = p.get("instructions", "")
-            bounds = self.paint.get_canvas_bounds()
+            # Check context to determine which canvas to use
+            if "blender" in instructions.lower() or self.windows.get_active_window() == "Blender":
+                # For Blender, we use a conceptual full-screen or viewport region
+                # In the future, this should find the 3D viewport region specifically
+                size = self.vision.get_screen_size()
+                bounds = (0, 0, size[0], size[1])
+            else:
+                bounds = self.paint.get_canvas_bounds()
+            
             self.creative.draw_custom(instructions, *bounds)
 
     def queue_task(self, plan: TaskPlan):
@@ -1701,6 +1716,40 @@ class BrioDesktopAgent:
             return "🛑 Aborted all running tasks."
 
         return None  # Not a desktop agent command
+
+    def execute_project(self, project) -> str:
+        """
+        Execute a full project roadmap from the Auditor.
+        Bridges the high-level plan with low-level GUI actions.
+        """
+        if not project or not project.steps:
+            return "❌ No project steps to execute."
+
+        log.info(f"[DesktopAgent] Executing project: {project.project_name}")
+        
+        # Convert project to a TaskPlan
+        task_plan = TaskPlan(name=project.project_name, description=project.description)
+        
+        for step in project.steps:
+            # Create a GUIAction for each step
+            # If it's a script, we'll use a special internal marker
+            if step.method == "script" and step.tool == "blender":
+                action = GUIAction(
+                    action_type=ActionType.WAIT, # We use WAIT as a wrapper for the script
+                    description=f"Blender Script: {step.name}",
+                    params={"script_step": True, "tool": step.tool, "name": step.name}
+                )
+            else:
+                action = GUIAction(
+                    action_type=ActionType.OPEN_APP if step.id == 1 else ActionType.WAIT,
+                    params={"app": step.tool, "seconds": 2},
+                    description=f"{step.name}: {step.description}"
+                )
+            task_plan.steps.append(action)
+
+        # Run the plan
+        self.planner.execute_plan(task_plan)
+        return f"🚀 Project execution started: **{project.project_name}**"
 
     def _execute_drawing(self, template: Optional[str], full_text: str) -> str:
         """Execute a drawing task."""

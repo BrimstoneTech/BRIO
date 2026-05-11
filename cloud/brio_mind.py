@@ -32,6 +32,11 @@ class BrioMind:
         self.memory = memory_engram
         self.system = system_ref
         self.conversation_history = []
+        
+        # Load .env if key is missing (Persistence Fix)
+        if not os.environ.get("GROQ_API_KEY"):
+            self._load_env_fallback()
+
         self.api_key = os.environ.get("GROQ_API_KEY", "")
         self.model = os.environ.get("GROQ_MODEL", PRIMARY_MODEL)
         self.fallback_model = os.environ.get("GROQ_FALLBACK_MODEL", FALLBACK_MODEL)
@@ -43,6 +48,28 @@ class BrioMind:
 
         if not self.api_key:
             log.warning("[BRIO MIND] GROQ_API_KEY not set. LLM responses will fail.")
+
+    def _load_env_fallback(self):
+        """Manually parse .env from root directory."""
+        # Look in current dir and parent dir
+        paths = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+        ]
+        for env_path in paths:
+            if os.path.exists(env_path):
+                try:
+                    with open(env_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line or line.startswith("#"):
+                                continue
+                            if "=" in line:
+                                key, val = line.split("=", 1)
+                                os.environ[key.strip()] = val.strip().strip('"').strip("'")
+                    break # Stop at first found .env
+                except Exception:
+                    pass
 
     def _call_groq(self, messages, temperature=0.7, max_tokens=1024, model=None):
         """Call Groq's chat completions API with retry + fallback logic."""

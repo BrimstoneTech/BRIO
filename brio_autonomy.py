@@ -170,7 +170,11 @@ class BrioAutonomy:
         # 1b. Check for project control commands (proceed/cancel/status)
         text_lower = text.lower().strip()
         if text_lower in ("proceed", "go ahead", "start execution", "approved", "do it"):
-            return self.auditor.approve()
+            msg = self.auditor.approve()
+            if self.agent and self.auditor.active_project:
+                exec_msg = self.agent.execute_project(self.auditor.active_project)
+                return f"{msg}\n\n{exec_msg}"
+            return msg
         if text_lower in ("cancel", "abort", "stop", "nevermind", "cancel project"):
             return self.auditor.reject()
 
