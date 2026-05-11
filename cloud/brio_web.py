@@ -184,6 +184,12 @@ try:
 except Exception:
     BrioLocalAccess = None
 
+# Desktop automation agent (GUI control, drawing, task planning)
+try:
+    from brio_desktop_agent import BrioDesktopAgent
+except Exception:
+    BrioDesktopAgent = None
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
@@ -909,11 +915,23 @@ class BrioWebSystem:
             except Exception as e:
                 log.warning(f"[System] Local Access skipped: {e}")
 
+        # --- Desktop Automation Agent (GUI control, drawing, task planning) ---
+        self.desktop_agent = None
+        if BrioDesktopAgent:
+            try:
+                self.desktop_agent = BrioDesktopAgent()
+                if self.desktop_agent.is_local:
+                    log.info(f"[System] Desktop Agent ENABLED — autonomous GUI control ready")
+                else:
+                    log.info("[System] Desktop Agent disabled (cloud mode)")
+            except Exception as e:
+                log.warning(f"[System] Desktop Agent skipped: {e}")
+
         # --- State ---
         self._load_state()
         self.is_awake = True
         boot_time = time.time() - self.boot_start
-        log.info(f"[System] Brio Web v6.0 ONLINE — Boot: {boot_time:.2f}s")
+        log.info(f"[System] Brio Web v6.2 ONLINE — Boot: {boot_time:.2f}s")
 
         # --- Background heartbeat ---
         self._heart_thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
@@ -1050,6 +1068,15 @@ class BrioWebSystem:
                     log.info(f"[Lifecycle] Generation {self.lifecycle.current_generation} nearing end of life...")
             except Exception as e:
                 log.warning(f"[Lifecycle] Interaction tracking error: {e}")
+
+        # --- Desktop Agent (autonomous GUI control, drawing, app automation) ---
+        if self.desktop_agent and self.desktop_agent.is_local:
+            try:
+                agent_result = self.desktop_agent.handle_command(text)
+                if agent_result:
+                    return agent_result
+            except Exception as e:
+                log.warning(f"[DesktopAgent] Error: {e}")
 
         # --- Local Machine Access (intercept commands) ---
         if self.local_access and self.local_access.is_local:
@@ -1592,6 +1619,44 @@ def create_app(model: str = "llama-3.3-70b-versatile", port: int = 7860,
             return jsonify(system.apis.execute_code(code, lang) or {"error": "Execution failed"})
         return jsonify({"error": "APIs not available"}), 503
 
+    # ─── Desktop Agent endpoints ─────────────────────────────────
+
+    @app.route("/api/desktop/status")
+    def api_desktop_status():
+        """Desktop agent status and capabilities."""
+        if system.desktop_agent:
+            return jsonify(system.desktop_agent.get_status())
+        return jsonify({"enabled": False, "reason": "Desktop agent not available"}), 503
+
+    @app.route("/api/desktop/screenshot")
+    def api_desktop_screenshot():
+        """Take a screenshot."""
+        if system.desktop_agent and system.desktop_agent.is_local:
+            path = system.desktop_agent.vision.save_screenshot("api_request")
+            if path:
+                return send_from_directory(
+                    os.path.dirname(path), os.path.basename(path),
+                    mimetype="image/png"
+                )
+        return jsonify({"error": "Screenshot not available"}), 503
+
+    @app.route("/api/desktop/windows")
+    def api_desktop_windows():
+        """List open windows."""
+        if system.desktop_agent and system.desktop_agent.is_local:
+            return jsonify({
+                "active": system.desktop_agent.windows.get_active_window(),
+                "windows": system.desktop_agent.windows.list_windows()
+            })
+        return jsonify({"error": "Not available in cloud mode"}), 503
+
+    @app.route("/api/desktop/drawings")
+    def api_desktop_drawings():
+        """List available drawing templates."""
+        if system.desktop_agent:
+            return jsonify(system.desktop_agent.creative.get_available_drawings())
+        return jsonify({"error": "Desktop agent not available"}), 503
+
     # ─── SocketIO ────────────────────────────────────────────────────
     @socketio.on("connect")
     def on_connect():
@@ -1675,6 +1740,9 @@ def create_app(model: str = "llama-3.3-70b-versatile", port: int = 7860,
         if system.local_access and system.local_access.is_local:
             info = system.local_access.get_system_info()
             machine_note = f"\n\n_I can see your machine — {info.get('os', 'your OS')}, {info.get('hostname', '')}. Full access enabled._"
+            # Desktop agent: mention autonomous capabilities
+            if system.desktop_agent and system.desktop_agent.is_local and system.desktop_agent.has_gui_control:
+                machine_note += "\n_🎨 Desktop Agent active — I can control your apps, draw, and automate tasks while you're away._"
             greeting += machine_note
 
         emit("brio_message", {"text": greeting, "type": "greeting"})
